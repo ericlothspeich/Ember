@@ -1,4 +1,4 @@
-﻿// Copyright (c) Christopher Whitley and Contributors. All rights reserved.
+// Copyright (c) Christopher Whitley and Contributors. All rights reserved.
 // Licensed under the MIT license.
 // See LICENSE file in the project root for full license information.
 
@@ -14,8 +14,7 @@ using Hexa.NET.ImGui;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using MonoGame.Extended.Particles;
-using MonoGame.Extended.Particles.Primitives;
+using Ifrit;
 
 
 namespace Ember;
@@ -29,7 +28,6 @@ public class EmberEditor : Game
     private static float s_frameRate;
 
     private readonly GraphicsDeviceManager _graphics;
-    private SpriteBatch _spriteBatch;
 
     // Input
     private static MouseState s_previousMouseState;
@@ -74,13 +72,15 @@ public class EmberEditor : Game
         _context = new(this);
         _context.ApplyTheme<CatppuccinFrappeTheme>();
 
+        // Load the particle shader
+        _context.LoadParticleShader();
+
         _mainView = new MainView(_context);
 
     }
 
     protected override void LoadContent()
     {
-        _spriteBatch = new SpriteBatch(GraphicsDevice);
     }
 
     protected override void Update(GameTime gameTime)
@@ -101,10 +101,9 @@ public class EmberEditor : Game
             // actively capturing mouse inputs
             if (!ioPtr.WantCaptureMouse && s_currentMouseState.LeftButton == ButtonState.Pressed)
             {
-                XnaVec2 start = s_previousMouseState.Position.ToVector2();
-                XnaVec2 end = s_currentMouseState.Position.ToVector2();
-                LineSegment lineSegment = new(start, end);
-                particleEffect.Trigger(lineSegment, 0.0f);
+                XnaVec2 mousePos = s_currentMouseState.Position.ToVector2();
+                particleEffect.WorldPosition = new Vector3(mousePos.X, mousePos.Y, 0f);
+                particleEffect.Trigger();
             }
 
             // Update the particle effect
@@ -118,9 +117,26 @@ public class EmberEditor : Game
 
         if (_context.ParticleEffect is ParticleEffect particleEffect)
         {
-            _spriteBatch.Begin(samplerState: SamplerState.PointWrap, blendState: BlendState.AlphaBlend);
-            _spriteBatch.Draw(particleEffect);
-            _spriteBatch.End();
+            int w = GraphicsDevice.Viewport.Width;
+            int h = GraphicsDevice.Viewport.Height;
+
+            // Set up orthographic projection for 2D particle rendering
+            particleEffect.View = Matrix.CreateLookAt(new Vector3(0, 0, 1), Vector3.Zero, Vector3.Up);
+            particleEffect.Projection = Matrix.CreateOrthographic(w, h, 0.01f, 10f);
+
+            // Set texture if available
+            if (_context.ParticleTexture != null)
+            {
+                particleEffect.Texture = _context.ParticleTexture;
+            }
+
+            // Set blend state for alpha blending
+            GraphicsDevice.BlendState = BlendState.AlphaBlend;
+            GraphicsDevice.DepthStencilState = DepthStencilState.None;
+            GraphicsDevice.RasterizerState = RasterizerState.CullNone;
+            GraphicsDevice.SamplerStates[0] = SamplerState.PointWrap;
+
+            particleEffect.Draw();
         }
 
         ImGuiRenderer.BeforeLayout(gameTime);

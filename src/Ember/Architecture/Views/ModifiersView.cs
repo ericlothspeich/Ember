@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using Ember.Architecture.Components;
 using Hexa.NET.ImGui;
-using MonoGame.Extended;
-using MonoGame.Extended.Particles.Modifiers;
-using MonoGame.Extended.Particles.Modifiers.Containers;
-using MonoGame.Extended.Particles.Modifiers.Interpolators;
+using Microsoft.Xna.Framework;
+using Ifrit;
+using Ifrit.Modifiers;
+using Ifrit.Interpolators;
 using static Hexa.NET.ImGui.ImGui;
 
 namespace Ember.Architecture.Views;
@@ -103,7 +103,7 @@ public sealed class ModifiersView
                             TableNextRow();
                             PushID(i);
 
-                            Modifier modifier = _context.SelectedEmitter.Modifiers[i];
+                            IModifier modifier = _context.SelectedEmitter.Modifiers[i];
                             bool isLocked = _context.IsLocked(modifier);
                             bool isSelected = modifier == _context.SelectedModifier;
                             uint buttonColor = isSelected ? GetColorU32(ImGuiCol.Button) : GetColorU32(SysVec4.Zero);
@@ -197,7 +197,7 @@ public sealed class ModifiersView
             ImGuiChildFlags childFlags = ImGuiChildFlags.Borders
                                          | ImGuiChildFlags.AutoResizeY;
 
-            if (_context.SelectedModifier is not Modifier modifier)
+            if (_context.SelectedModifier is not IModifier modifier)
             {
                 return;
             }
@@ -212,14 +212,6 @@ public sealed class ModifiersView
                     if (PropertyTable.InputTextProperty("Name"u8, "The display name of the selected modifier"u8, ref modifierName))
                     {
                         modifier.Name = modifierName;
-                        _context.HasUnsavedChanges = true;
-                    }
-
-                    // Frequency property
-                    float modifierFrequency = modifier.Frequency;
-                    if (PropertyTable.DragFloatProperty("Frequency"u8, "How often, in times per second, the modifier attempts to update the particle buffer"u8, ref modifierFrequency, 0.1f, 0.1f, float.MaxValue))
-                    {
-                        modifier.Frequency = modifierFrequency;
                         _context.HasUnsavedChanges = true;
                     }
 
@@ -335,17 +327,17 @@ public sealed class ModifiersView
                             break;
 
                         case VelocityColorModifier velocityColor:
-                            HslColor velocityColorStationaryColor = velocityColor.StationaryColor;
-                            if (PropertyTable.Color3Property("Stationary Color"u8, "The color for particles that are stationary or moving slowly"u8, ref velocityColorStationaryColor))
+                            XnaVec3 stationaryColor = velocityColor.StationaryColor;
+                            if (PropertyTable.Color3VectorProperty("Stationary Color"u8, "The color for particles that are stationary or moving slowly"u8, ref stationaryColor))
                             {
-                                velocityColor.StationaryColor = velocityColorStationaryColor;
+                                velocityColor.StationaryColor = stationaryColor;
                                 _context.HasUnsavedChanges = true;
                             }
 
-                            HslColor velocityColorVelocityColor = velocityColor.VelocityColor;
-                            if (PropertyTable.Color3Property("Velocity Color"u8, "The color for particles that have reached or exceeded the velocity threshold"u8, ref velocityColorVelocityColor))
+                            XnaVec3 velocityColorValue = velocityColor.VelocityColor;
+                            if (PropertyTable.Color3VectorProperty("Velocity Color"u8, "The color for particles that have reached or exceeded the velocity threshold"u8, ref velocityColorValue))
                             {
-                                velocityColor.VelocityColor = velocityColorVelocityColor;
+                                velocityColor.VelocityColor = velocityColorValue;
                                 _context.HasUnsavedChanges = true;
                             }
 
@@ -426,7 +418,7 @@ public sealed class ModifiersView
             return;
         }
 
-        List<Interpolator> interpolators = _context.GetCurrentInterpolators();
+        List<IInterpolator> interpolators = _context.GetCurrentInterpolators();
 
         if (CollapsingHeader("Interpolators"u8, ImGuiTreeNodeFlags.DefaultOpen))
         {
@@ -459,7 +451,7 @@ public sealed class ModifiersView
                         TableNextRow();
                         PushID(i);
 
-                        Interpolator interpolator = interpolators[i];
+                        IInterpolator interpolator = interpolators[i];
                         bool isLocked = _context.IsLocked(interpolator);
                         bool isSelected = interpolator == _context.SelectedInterpolator;
                         uint buttonColor = isSelected ? GetColorU32(ImGuiCol.Button) : GetColorU32(SysVec4.Zero);
@@ -549,7 +541,7 @@ public sealed class ModifiersView
 
     private void DrawSelectedInterpolatorProperties()
     {
-        if (_context.SelectedInterpolator is not Interpolator interpolator)
+        if (_context.SelectedInterpolator is not IInterpolator interpolator)
         {
             return;
         }
@@ -575,15 +567,15 @@ public sealed class ModifiersView
                     switch (interpolator)
                     {
                         case ColorInterpolator colorInterpolator:
-                            HslColor colorInterpolatorStartValue = colorInterpolator.StartValue;
-                            if (PropertyTable.Color3Property("Start Value"u8, "Initial HSL color for particles"u8, ref colorInterpolatorStartValue))
+                            XnaVec3 colorInterpolatorStartValue = colorInterpolator.StartValue;
+                            if (PropertyTable.Color3VectorProperty("Start Value"u8, "Initial HSL color for particles"u8, ref colorInterpolatorStartValue))
                             {
                                 colorInterpolator.StartValue = colorInterpolatorStartValue;
                                 _context.HasUnsavedChanges = true;
                             }
 
-                            HslColor colorInterpolatorEndValue = colorInterpolator.EndValue;
-                            if (PropertyTable.Color3Property("End Value"u8, "Final HSL color for particles"u8, ref colorInterpolatorEndValue))
+                            XnaVec3 colorInterpolatorEndValue = colorInterpolator.EndValue;
+                            if (PropertyTable.Color3VectorProperty("End Value"u8, "Final HSL color for particles"u8, ref colorInterpolatorEndValue))
                             {
                                 colorInterpolator.EndValue = colorInterpolatorEndValue;
                                 _context.HasUnsavedChanges = true;
@@ -624,14 +616,14 @@ public sealed class ModifiersView
 
                         case RotationInterpolator rotationInterpolator:
                             float rotationInterpolatorStartValue = rotationInterpolator.StartValue;
-                            if (PropertyTable.DragFloatProperty("Start Value"u8, "Initial rotation angle in radians (π = 180°, 2π = 360°)"u8, ref rotationInterpolatorStartValue, 0.01f, -MathF.PI * 2.0f, MathF.PI * 2.0f))
+                            if (PropertyTable.DragFloatProperty("Start Value"u8, "Initial rotation angle in radians"u8, ref rotationInterpolatorStartValue, 0.01f, -MathF.PI * 2.0f, MathF.PI * 2.0f))
                             {
                                 rotationInterpolator.StartValue = rotationInterpolatorStartValue;
                                 _context.HasUnsavedChanges = true;
                             }
 
                             float rotationInterpolatorEndValue = rotationInterpolator.EndValue;
-                            if (PropertyTable.DragFloatProperty("End Value"u8, "Final rotation angle in radians (π = 180°, 2π = 360°)"u8, ref rotationInterpolatorEndValue, 0.01f, -MathF.PI * 2.0f, MathF.PI * 2.0f))
+                            if (PropertyTable.DragFloatProperty("End Value"u8, "Final rotation angle in radians"u8, ref rotationInterpolatorEndValue, 0.01f, -MathF.PI * 2.0f, MathF.PI * 2.0f))
                             {
                                 rotationInterpolator.EndValue = rotationInterpolatorEndValue;
                                 _context.HasUnsavedChanges = true;
@@ -796,7 +788,7 @@ public sealed class ModifiersView
 
             Separator();
 
-            BeginDisabled(_modifierTypeToAdd == null);
+            BeginDisabled(_interpolatorToAdd == null);
             if (Button("Select"u8))
             {
                 _context.AddInterpolator(_interpolatorToAdd);
@@ -818,7 +810,7 @@ public sealed class ModifiersView
 
     private void AddInterpolatorChoice(Type interpolatorType, ReadOnlySpan<byte> label, ReadOnlySpan<byte> tooltip)
     {
-        bool isSelected = _modifierTypeToAdd == interpolatorType;
+        bool isSelected = _interpolatorToAdd == interpolatorType;
         if (Selectable(label, isSelected))
         {
             _interpolatorToAdd = interpolatorType;

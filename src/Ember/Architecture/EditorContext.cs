@@ -7,11 +7,10 @@ using Hexa.NET.ImGui;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
-using MonoGame.Extended;
-using MonoGame.Extended.Particles;
-using MonoGame.Extended.Particles.Modifiers;
-using MonoGame.Extended.Particles.Modifiers.Containers;
-using MonoGame.Extended.Particles.Modifiers.Interpolators;
+using Ifrit;
+using Ifrit.Modifiers;
+using Ifrit.Interpolators;
+using Ifrit.Profiles;
 
 namespace Ember.Architecture;
 
@@ -34,14 +33,17 @@ public sealed class EditorContext : IDisposable
     private bool _pendingCreateProjectDirectory;
     private string _pendingProjectFilePath;
 
+    // The particle shader effect (loaded once, shared by all effects)
+    private Effect _particleEffect;
+
     public ParticleEffect ParticleEffect { get; private set; }
     public ParticleEmitter SelectedEmitter { get; private set; }
     public int SelectedEmitterIndex { get; private set; } = -1;
 
-    public Modifier SelectedModifier { get; private set; }
+    public IModifier SelectedModifier { get; private set; }
     public int SelectedModifierIndex { get; private set; } = -1;
 
-    public Interpolator SelectedInterpolator { get; private set; }
+    public IInterpolator SelectedInterpolator { get; private set; }
     public int SelectedInterpolatorIndex { get; private set; } = -1;
 
     public string ProjectName { get; private set; } = string.Empty;
@@ -55,6 +57,9 @@ public sealed class EditorContext : IDisposable
     public bool IsProjectOpen => ParticleEffect != null;
     public bool IsProjectPaused { get; private set; } = false;
     public bool IsSavePromptPending => _pendingAction != PendingAction.None;
+
+    /// <summary>The shared texture atlas assigned to the particle effect.</summary>
+    public Texture2D ParticleTexture { get; set; }
 
     public float BaseFontSize
     {
@@ -107,6 +112,22 @@ public sealed class EditorContext : IDisposable
     }
 
     ~EditorContext() => Dispose(false);
+
+    /// <summary>
+    /// Loads the Particle shader effect. Uses a dedicated ContentManager so that the
+    /// shared shader is not affected when _contentManager.Unload() is called on project close.
+    /// </summary>
+    public void LoadParticleShader()
+    {
+        if (_particleEffect != null)
+            return;
+
+        // Use a separate ContentManager so unloading project content doesn't dispose the shader
+        var shaderContent = new ContentManager(_game.Services, "Content");
+        _particleEffect = shaderContent.Load<Effect>("Effects/Particle");
+    }
+
+    public Effect GetParticleShader() => _particleEffect;
 
     private void OnExiting(object sender, EventArgs e)
     {
@@ -202,7 +223,8 @@ public sealed class EditorContext : IDisposable
             return;
         }
 
-        ParticleEffect.Position = _graphicsDevice.Viewport.Bounds.Center.ToVector2();
+        var center = _graphicsDevice.Viewport.Bounds.Center;
+        ParticleEffect.WorldPosition = new Vector3(center.X, center.Y, 0f);
     }
 
     public void AddEmitter()
@@ -212,8 +234,12 @@ public sealed class EditorContext : IDisposable
             return;
         }
 
-        ParticleEmitter emitter = new(1000);
-        emitter.Name = nameof(ParticleEmitter);
+        var emitter = new ParticleEmitter(1000)
+        {
+            Profile = new PointProfile(),
+            Lifetime = 1f,
+            Name = nameof(ParticleEmitter)
+        };
 
         int index = ParticleEffect.Emitters.Count;
         ParticleEffect.Emitters.Add(emitter);
@@ -288,7 +314,7 @@ public sealed class EditorContext : IDisposable
             return;
         }
 
-        Modifier modifier = CreateModifier(modifierType);
+        IModifier modifier = CreateModifier(modifierType);
         int index = SelectedEmitter.Modifiers.Count;
         SelectedEmitter.Modifiers.Add(modifier);
         TrackLock(modifier);
@@ -320,7 +346,7 @@ public sealed class EditorContext : IDisposable
             return;
         }
 
-        Modifier modifier = SelectedEmitter.Modifiers[index];
+        IModifier modifier = SelectedEmitter.Modifiers[index];
         SelectedEmitter.Modifiers.RemoveAt(index);
         UntrackLock(modifier);
 
@@ -341,7 +367,7 @@ public sealed class EditorContext : IDisposable
             return;
         }
 
-        Modifier moving = SelectedEmitter.Modifiers[fromIndex];
+        IModifier moving = SelectedEmitter.Modifiers[fromIndex];
         SelectedEmitter.Modifiers.RemoveAt(fromIndex);
         SelectedEmitter.Modifiers.Insert(toIndex, moving);
 
@@ -355,9 +381,9 @@ public sealed class EditorContext : IDisposable
         HasUnsavedChanges = true;
     }
 
-    public bool SupportsInterpolators(Modifier modifier) => modifier is AgeModifier || modifier is VelocityModifier;
+    public bool SupportsInterpolators(IModifier modifier) => modifier is AgeModifier || modifier is VelocityModifier;
 
-    public List<Interpolator> GetCurrentInterpolators()
+    public List<IInterpolator> GetCurrentInterpolators()
     {
         return SelectedModifier switch
         {
@@ -368,7 +394,7 @@ public sealed class EditorContext : IDisposable
     }
 
 
-    private Modifier CreateModifier(Type modifierType)
+    private IModifier CreateModifier(Type modifierType)
     {
         if (modifierType == typeof(RectangleLoopContainerModifier))
         {
@@ -397,7 +423,7 @@ public sealed class EditorContext : IDisposable
 
         if (modifierType == typeof(AgeModifier))
         {
-            return new AgeModifier() { Interpolators = new List<Interpolator>() { new ScaleInterpolator() { StartValue = Vector2.Zero, EndValue = Vector2.One } } };
+            return new AgeModifier() { Interpolators = { new ScaleInterpolator() { StartValue = Vector2.Zero, EndValue = Vector2.One } } };
         }
 
         if (modifierType == typeof(CircleContainerModifier))
@@ -417,12 +443,12 @@ public sealed class EditorContext : IDisposable
 
         if (modifierType == typeof(VelocityColorModifier))
         {
-            return new VelocityColorModifier() { VelocityThreshold = 100.0f, StationaryColor = new HslColor(0, 0, 1.0f), VelocityColor = new HslColor(0, 1.0f, 0.5f) };
+            return new VelocityColorModifier() { VelocityThreshold = 100.0f, StationaryColor = new Vector3(0, 0, 1.0f), VelocityColor = new Vector3(0, 1.0f, 0.5f) };
         }
 
         if (modifierType == typeof(VelocityModifier))
         {
-            return new VelocityModifier() { VelocityThreshold = 100.0f, Interpolators = new List<Interpolator>() { new ScaleInterpolator() { StartValue = Vector2.Zero, EndValue = Vector2.One } } };
+            return new VelocityModifier() { VelocityThreshold = 100.0f, Interpolators = { new ScaleInterpolator() { StartValue = Vector2.Zero, EndValue = Vector2.One } } };
         }
 
         throw new InvalidOperationException($"Unknown modifier type '{modifierType.Name}'");
@@ -430,13 +456,13 @@ public sealed class EditorContext : IDisposable
 
     public void AddInterpolator(Type interpolatorType)
     {
-        List<Interpolator> interpolators = GetCurrentInterpolators();
+        List<IInterpolator> interpolators = GetCurrentInterpolators();
         if (interpolators == null)
         {
             return;
         }
 
-        Interpolator interpolator = CreateInterpolator(interpolatorType);
+        IInterpolator interpolator = CreateInterpolator(interpolatorType);
         int index = interpolators.Count;
         interpolators.Add(interpolator);
         TrackLock(interpolator);
@@ -446,7 +472,7 @@ public sealed class EditorContext : IDisposable
 
     public void SelectInterpolator(int index)
     {
-        List<Interpolator> interpolators = GetCurrentInterpolators();
+        List<IInterpolator> interpolators = GetCurrentInterpolators();
         if (interpolators == null || index < 0 || index >= interpolators.Count)
         {
             SelectedInterpolator = null;
@@ -461,13 +487,13 @@ public sealed class EditorContext : IDisposable
 
     public void RemoveInterpolator(int index)
     {
-        List<Interpolator> interpolators = GetCurrentInterpolators();
+        List<IInterpolator> interpolators = GetCurrentInterpolators();
         if (interpolators == null || index < 0 || index >= interpolators.Count)
         {
             return;
         }
 
-        Interpolator interpolator = interpolators[index];
+        IInterpolator interpolator = interpolators[index];
         interpolators.RemoveAt(index);
         UntrackLock(interpolator);
 
@@ -483,13 +509,13 @@ public sealed class EditorContext : IDisposable
 
     public void ReorderInterpolators(int fromIndex, int toIndex)
     {
-        List<Interpolator> interpolators = GetCurrentInterpolators();
+        List<IInterpolator> interpolators = GetCurrentInterpolators();
         if (interpolators == null || fromIndex < 0 || fromIndex >= interpolators.Count || toIndex < 0 || toIndex >= interpolators.Count)
         {
             return;
         }
 
-        Interpolator moving = interpolators[fromIndex];
+        IInterpolator moving = interpolators[fromIndex];
         interpolators.RemoveAt(fromIndex);
         interpolators.Insert(toIndex, moving);
 
@@ -503,11 +529,11 @@ public sealed class EditorContext : IDisposable
         HasUnsavedChanges = true;
     }
 
-    private static Interpolator CreateInterpolator(Type interpolatorType)
+    private static IInterpolator CreateInterpolator(Type interpolatorType)
     {
         if (interpolatorType == typeof(ColorInterpolator))
         {
-            return new ColorInterpolator() { StartValue = new HslColor(0.0f, 0.0f, 0.0f), EndValue = new HslColor(0.0f, 0.0f, 1.0f) };
+            return new ColorInterpolator() { StartValue = new Vector3(0.0f, 0.0f, 0.0f), EndValue = new Vector3(0.0f, 0.0f, 1.0f) };
         }
 
         if (interpolatorType == typeof(HueInterpolator))
@@ -543,17 +569,17 @@ public sealed class EditorContext : IDisposable
     }
 
     public bool IsLocked(ParticleEmitter emitter) => _locks.GetValueOrDefault(emitter, false);
-    public bool IsLocked(Modifier modifier) => _locks.GetValueOrDefault(modifier, false);
-    public bool IsLocked(Interpolator interpolator) => _locks.GetValueOrDefault(interpolator, false);
+    public bool IsLocked(IModifier modifier) => _locks.GetValueOrDefault(modifier, false);
+    public bool IsLocked(IInterpolator interpolator) => _locks.GetValueOrDefault(interpolator, false);
     public bool ToggleLock(ParticleEmitter emitter) => _locks[emitter] = !IsLocked(emitter);
-    public bool ToggleLock(Modifier modifier) => _locks[modifier] = !IsLocked(modifier);
-    public bool ToggleLock(Interpolator interpolator) => _locks[interpolator] = !IsLocked(interpolator);
+    public bool ToggleLock(IModifier modifier) => _locks[modifier] = !IsLocked(modifier);
+    public bool ToggleLock(IInterpolator interpolator) => _locks[interpolator] = !IsLocked(interpolator);
     public void TrackLock(ParticleEmitter emitter) => _locks[emitter] = false;
-    public void TrackLock(Modifier modifier) => _locks[modifier] = false;
-    public void TrackLock(Interpolator interpolator) => _locks[interpolator] = false;
-    public void UntrackLock(Modifier emitter) => _locks.Remove(emitter);
+    public void TrackLock(IModifier modifier) => _locks[modifier] = false;
+    public void TrackLock(IInterpolator interpolator) => _locks[interpolator] = false;
+    public void UntrackLock(IModifier emitter) => _locks.Remove(emitter);
     public void UntrackLock(ParticleEmitter modifier) => _locks.Remove(modifier);
-    public void UntrackLock(Interpolator parameter) => _locks.Remove(parameter);
+    public void UntrackLock(IInterpolator parameter) => _locks.Remove(parameter);
     public void ClearLocks() => _locks.Clear();
 
     public string GetWorkingDirectory() => Directory.GetCurrentDirectory();
@@ -637,7 +663,8 @@ public sealed class EditorContext : IDisposable
         LastUsedTextureDirectory = ProjectDirectory;
         LastUsedProjectDirectory = ProjectDirectory;
 
-        ParticleEffect = new ParticleEffect(ProjectName);
+        ParticleEffect = new ParticleEffect(_graphicsDevice, _particleEffect.Clone());
+        ParticleEffect.Name = ProjectName;
 
         CenterParticleEffect();
 
@@ -661,7 +688,60 @@ public sealed class EditorContext : IDisposable
         LastUsedTextureDirectory = ProjectDirectory;
         LastUsedProjectDirectory = ProjectDirectory;
 
-        ParticleEffect = ParticleEffectSerializer.Deserialize(ProjectFilePath, _contentManager);
+        // Load ember data from file
+        EmberData data = EmberLoader.Load(ProjectFilePath);
+
+        // Reconstruct ParticleEffect
+        ParticleEffect = new ParticleEffect(_graphicsDevice, _particleEffect.Clone());
+        ParticleEffect.Name = data.Name;
+        ParticleEffect.AutoTrigger = data.AutoTrigger;
+        ParticleEffect.AutoTriggerFrequency = data.AutoTriggerFrequency;
+
+        // Load textures and create emitters
+        foreach (EmberEmitterData emitterData in data.Emitters)
+        {
+            // Load texture if specified
+            int atlasWidth = 1;
+            int atlasHeight = 1;
+            if (!string.IsNullOrEmpty(emitterData.TextureName))
+            {
+                string absoluteTexturePath = Path.Combine(ProjectDirectory, emitterData.TextureName);
+                if (File.Exists(absoluteTexturePath))
+                {
+                    AddTexture(absoluteTexturePath);
+                    Texture2D tex = GetTexture(emitterData.TextureName);
+                    if (tex != null)
+                    {
+                        atlasWidth = tex.Width;
+                        atlasHeight = tex.Height;
+                        ParticleTexture = tex;
+                        ParticleEffect.Texture = tex;
+                    }
+                }
+            }
+
+            ParticleEmitter emitter = EmberLoader.CreateEmitter(emitterData, data, atlasWidth, atlasHeight);
+            emitter.Name = emitterData.Name ?? nameof(ParticleEmitter);
+            ParticleEffect.Emitters.Add(emitter);
+            TrackLock(emitter);
+
+            // Track locks for modifiers and interpolators
+            foreach (IModifier mod in emitter.Modifiers)
+            {
+                TrackLock(mod);
+                if (mod is AgeModifier ageMod)
+                {
+                    foreach (IInterpolator interp in ageMod.Interpolators)
+                        TrackLock(interp);
+                }
+                else if (mod is VelocityModifier velMod)
+                {
+                    foreach (IInterpolator interp in velMod.Interpolators)
+                        TrackLock(interp);
+                }
+            }
+        }
+
         CenterParticleEffect();
 
         HasUnsavedChanges = false;
@@ -674,7 +754,35 @@ public sealed class EditorContext : IDisposable
             return;
         }
 
-        ParticleEffectSerializer.Serialize(ProjectFilePath, ParticleEffect);
+        var context = new EmberWriteContext
+        {
+            EffectName = ParticleEffect.Name ?? ProjectName,
+            AutoTrigger = ParticleEffect.AutoTrigger,
+            AutoTriggerFrequency = ParticleEffect.AutoTriggerFrequency,
+        };
+
+        foreach (ParticleEmitter emitter in ParticleEffect.Emitters)
+        {
+            var emitterData = new EmitterWriteData
+            {
+                Emitter = emitter,
+                Name = emitter.Name,
+            };
+
+            // Try to find the texture name and bounds for this emitter
+            if (ParticleTexture != null)
+            {
+                emitterData.TextureName = ParticleTexture.Name;
+                emitterData.TextureBoundsX = (int)(emitter.UVOffset.X * ParticleTexture.Width);
+                emitterData.TextureBoundsY = (int)(emitter.UVOffset.Y * ParticleTexture.Height);
+                emitterData.TextureBoundsWidth = (int)(emitter.UVScale.X * ParticleTexture.Width);
+                emitterData.TextureBoundsHeight = (int)(emitter.UVScale.Y * ParticleTexture.Height);
+            }
+
+            context.Emitters.Add(emitterData);
+        }
+
+        EmberWriter.Save(ProjectFilePath, context);
 
         HasUnsavedChanges = false;
     }
@@ -687,6 +795,7 @@ public sealed class EditorContext : IDisposable
             ParticleEffect = null;
         }
 
+        ParticleTexture = null;
         _contentManager.Unload();
         ClearTextures();
         ClearSelection();

@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\external\monogame-extended\source\MonoGame.Extended\MonoGame.Extended.csproj" />
+    <ProjectReference Include="..\..\external\Ifrit\Ifrit.csproj" />
   </ItemGroup>
 
   <ItemGroup>
