@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\external\Ifrit\Ifrit.csproj" />
+    <ProjectReference Include="..\..\..\tripleluckylink\Ifrit\Ifrit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

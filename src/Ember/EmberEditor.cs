@@ -22,7 +22,7 @@ namespace Ember;
 public class EmberEditor : Game
 {
     private static EmberEditor s_instance;
-    private static readonly CompositeFormat s_windowTitle = CompositeFormat.Parse("Ember: {0} | {1:F3} ms/Frame | {2:F1} FPS {3}");
+    private static readonly CompositeFormat s_windowTitle = CompositeFormat.Parse("Ember: {0} | {1:F3} ms/Frame | {2:F1} FPS | Particles: {3} {4}");
     private static readonly string s_version = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
 
     private static float s_frameRate;
@@ -101,9 +101,11 @@ public class EmberEditor : Game
             // actively capturing mouse inputs
             if (!ioPtr.WantCaptureMouse && s_currentMouseState.LeftButton == ButtonState.Pressed)
             {
-                XnaVec2 mousePos = s_currentMouseState.Position.ToVector2();
-                particleEffect.WorldPosition = new Vector3(mousePos.X, mousePos.Y, 0f);
-                particleEffect.Trigger();
+                int w = GraphicsDevice.Viewport.Width;
+                int h = GraphicsDevice.Viewport.Height;
+                float worldX = s_currentMouseState.X - w * 0.5f;
+                float worldY = -(s_currentMouseState.Y - h * 0.5f);
+                particleEffect.WorldPosition = new Vector3(worldX, worldY, 0f);
             }
 
             // Update the particle effect
@@ -131,7 +133,7 @@ public class EmberEditor : Game
             }
 
             // Set blend state for alpha blending
-            GraphicsDevice.BlendState = BlendState.AlphaBlend;
+            GraphicsDevice.BlendState = BlendState.NonPremultiplied;
             GraphicsDevice.DepthStencilState = DepthStencilState.None;
             GraphicsDevice.RasterizerState = RasterizerState.CullNone;
             GraphicsDevice.SamplerStates[0] = SamplerState.PointWrap;
@@ -146,6 +148,7 @@ public class EmberEditor : Game
         s_frameRate = ImGui.GetIO().Framerate;
 
 
-        Window.Title = string.Format(CultureInfo.InvariantCulture, s_windowTitle, s_version, 1000.0f / s_frameRate, s_frameRate, _context.HasUnsavedChanges ? "*" : string.Empty);
+        int liveCount = (_context.ParticleEffect as ParticleEffect)?.TotalLiveCount ?? 0;
+        Window.Title = string.Format(CultureInfo.InvariantCulture, s_windowTitle, s_version, 1000.0f / s_frameRate, s_frameRate, liveCount, _context.HasUnsavedChanges ? "*" : string.Empty);
     }
 }

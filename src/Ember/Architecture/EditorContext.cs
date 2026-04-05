@@ -223,8 +223,7 @@ public sealed class EditorContext : IDisposable
             return;
         }
 
-        var center = _graphicsDevice.Viewport.Bounds.Center;
-        ParticleEffect.WorldPosition = new Vector3(center.X, center.Y, 0f);
+        ParticleEffect.WorldPosition = Vector3.Zero;
     }
 
     public void AddEmitter()

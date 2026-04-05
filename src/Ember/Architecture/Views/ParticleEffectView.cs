@@ -313,11 +313,11 @@ public sealed class ParticleEffectView
                         }
                     }
 
-                    // Capacity Property (read-only in Ifrit — capacity is set at construction)
                     int emitterCapacity = emitter.Capacity;
                     if (PropertyTable.InputIntProperty("Capacity"u8, "The maximum number of particles that this emitter can have active at a given time"u8, ref emitterCapacity))
                     {
-                        // Capacity is read-only in Ifrit; ignore changes for now
+                        emitter.Capacity = emitterCapacity;
+                        _context.HasUnsavedChanges = true;
                     }
 
                     // Lifetime Property
