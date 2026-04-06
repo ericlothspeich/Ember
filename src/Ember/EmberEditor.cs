@@ -14,7 +14,7 @@ using Hexa.NET.ImGui;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using Ifrit;
+using IfritParticles;
 
 
 namespace Ember;
@@ -22,7 +22,7 @@ namespace Ember;
 public class EmberEditor : Game
 {
     private static EmberEditor s_instance;
-    private static readonly CompositeFormat s_windowTitle = CompositeFormat.Parse("Ember: {0} | {1:F3} ms/Frame | {2:F1} FPS | Particles: {3} {4}");
+    private static readonly CompositeFormat s_windowTitle = CompositeFormat.Parse("Ember: {0} | {1:F1} FPS | P:{2} | Upd:{3:F2} Wrt:{4:F2} Upl:{5:F2}ms {6}");
     private static readonly string s_version = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
 
     private static float s_frameRate;
@@ -99,7 +99,10 @@ public class EmberEditor : Game
 
             // Only emit if the click happens somewhere that ImGui is not
             // actively capturing mouse inputs
-            if (!ioPtr.WantCaptureMouse && s_currentMouseState.LeftButton == ButtonState.Pressed)
+            bool mouseInClient = s_currentMouseState.X >= 0 && s_currentMouseState.Y >= 0
+                && s_currentMouseState.X < GraphicsDevice.Viewport.Width
+                && s_currentMouseState.Y < GraphicsDevice.Viewport.Height;
+            if (IsActive && mouseInClient && !ioPtr.WantCaptureMouse && s_currentMouseState.LeftButton == ButtonState.Pressed)
             {
                 int w = GraphicsDevice.Viewport.Width;
                 int h = GraphicsDevice.Viewport.Height;
@@ -148,7 +151,11 @@ public class EmberEditor : Game
         s_frameRate = ImGui.GetIO().Framerate;
 
 
-        int liveCount = (_context.ParticleEffect as ParticleEffect)?.TotalLiveCount ?? 0;
-        Window.Title = string.Format(CultureInfo.InvariantCulture, s_windowTitle, s_version, 1000.0f / s_frameRate, s_frameRate, liveCount, _context.HasUnsavedChanges ? "*" : string.Empty);
+        ParticleEffect pe = _context.ParticleEffect as ParticleEffect;
+        int liveCount = pe?.TotalLiveCount ?? 0;
+        float updMs = pe?.UpdateMs ?? 0f;
+        float wrtMs = pe?.WriteMs ?? 0f;
+        float uplMs = pe?.UploadMs ?? 0f;
+        Window.Title = string.Format(CultureInfo.InvariantCulture, s_windowTitle, s_version, s_frameRate, liveCount, updMs, wrtMs, uplMs, _context.HasUnsavedChanges ? "*" : string.Empty);
     }
 }

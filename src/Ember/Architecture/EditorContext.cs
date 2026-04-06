@@ -1,16 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 using Ember.Architecture.Style;
 using Hexa.NET.ImGui;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
-using Ifrit;
-using Ifrit.Modifiers;
-using Ifrit.Interpolators;
-using Ifrit.Profiles;
+using IfritParticles;
+using IfritParticles.Modifiers;
+using IfritParticles.Interpolators;
+using IfritParticles.Profiles;
 
 namespace Ember.Architecture;
 
@@ -52,6 +54,61 @@ public sealed class EditorContext : IDisposable
 
     public string LastUsedTextureDirectory { get; set; } = string.Empty;
     public string LastUsedProjectDirectory { get; set; } = string.Empty;
+
+    private const int MaxRecentFiles = 10;
+    private static readonly string RecentFilesPath = Path.Combine(GetAppDataDirectory(), "recent.json");
+
+    private static string GetAppDataDirectory()
+    {
+        if (OperatingSystem.IsMacOS())
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Library", "Application Support", "Ember");
+        // Windows: AppData/Roaming/Ember, Linux: ~/.config/Ember
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ember");
+    }
+
+    public List<string> RecentFiles { get; private set; } = new List<string>();
+
+    public void AddRecentFile(string filePath)
+    {
+        RecentFiles.Remove(filePath);
+        RecentFiles.Insert(0, filePath);
+        if (RecentFiles.Count > MaxRecentFiles)
+            RecentFiles.RemoveAt(RecentFiles.Count - 1);
+        SaveRecentFiles();
+    }
+
+    private void LoadRecentFiles()
+    {
+        try
+        {
+            if (File.Exists(RecentFilesPath))
+            {
+                string json = File.ReadAllText(RecentFilesPath);
+                RecentFiles = JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+                RecentFiles = RecentFiles.Where(File.Exists).ToList();
+            }
+        }
+        catch { RecentFiles = new List<string>(); }
+    }
+
+    public void ClearRecentFiles()
+    {
+        RecentFiles.Clear();
+        SaveRecentFiles();
+    }
+
+    private void SaveRecentFiles()
+    {
+        try
+        {
+            string dir = Path.GetDirectoryName(RecentFilesPath);
+            if (!Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+            File.WriteAllText(RecentFilesPath, JsonSerializer.Serialize(RecentFiles));
+        }
+        catch { }
+    }
 
     public bool HasUnsavedChanges { get; set; }
     public bool IsProjectOpen => ParticleEffect != null;
@@ -109,6 +166,7 @@ public sealed class EditorContext : IDisposable
         _game.Exiting += OnExiting;
         ApplyTheme<CatppuccinFrappeTheme>();
         ApplyFontSettings();
+        LoadRecentFiles();
     }
 
     ~EditorContext() => Dispose(false);
@@ -407,7 +465,7 @@ public sealed class EditorContext : IDisposable
 
         if (modifierType == typeof(LinearGravityModifier))
         {
-            return new LinearGravityModifier() { Direction = Vector2.UnitY, Strength = 100.0f };
+            return new LinearGravityModifier() { Direction = Vector3.UnitY, Strength = 100.0f };
         }
 
         if (modifierType == typeof(VortexModifier))
@@ -669,6 +727,7 @@ public sealed class EditorContext : IDisposable
 
         HasUnsavedChanges = true;
         SaveProject();
+        AddRecentFile(ProjectFilePath);
     }
 
     public void OpenProject(string filePath)
@@ -742,6 +801,7 @@ public sealed class EditorContext : IDisposable
         }
 
         CenterParticleEffect();
+        AddRecentFile(filePath);
 
         HasUnsavedChanges = false;
     }

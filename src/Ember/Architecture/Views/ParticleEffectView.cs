@@ -5,8 +5,8 @@ using Ember.Architecture.PopupModals;
 using Hexa.NET.ImGui;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Ifrit;
-using Ifrit.Profiles;
+using IfritParticles;
+using IfritParticles.Profiles;
 using static Hexa.NET.ImGui.ImGui;
 
 namespace Ember.Architecture.Views;

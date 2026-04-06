@@ -59,6 +59,30 @@ public sealed class MainMenuBarView
                 _openProject = true;
             }
 
+            if (_context.RecentFiles.Count > 0 && BeginMenu("Open Recent"u8))
+            {
+                for (int i = 0; i < _context.RecentFiles.Count; i++)
+                {
+                    string path = _context.RecentFiles[i];
+                    string label = Path.GetFileNameWithoutExtension(path);
+                    if (MenuItem(label))
+                    {
+                        _context.RequestOpenProject(path);
+                    }
+                    if (IsItemHovered())
+                    {
+                        SetTooltip(path);
+                    }
+                }
+
+                Separator();
+                if (MenuItem("Clear Recent"u8))
+                {
+                    _context.ClearRecentFiles();
+                }
+                EndMenu();
+            }
+
             if (MenuItem("Save project"u8))
             {
                 _context.SaveProject();

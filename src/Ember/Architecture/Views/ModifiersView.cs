@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using Ember.Architecture.Components;
 using Hexa.NET.ImGui;
 using Microsoft.Xna.Framework;
-using Ifrit;
-using Ifrit.Modifiers;
-using Ifrit.Interpolators;
+using IfritParticles;
+using IfritParticles.Modifiers;
+using IfritParticles.Interpolators;
 using static Hexa.NET.ImGui.ImGui;
 
 namespace Ember.Architecture.Views;
@@ -259,10 +259,10 @@ public sealed class ModifiersView
                             break;
 
                         case LinearGravityModifier gravity:
-                            XnaVec2 gravityDirection = gravity.Direction;
+                            XnaVec2 gravityDirection = new XnaVec2(gravity.Direction.X, gravity.Direction.Y);
                             if (PropertyTable.DragVector2Property("Direction"u8, "The direction vector of the gravitational force"u8, ref gravityDirection, 0.1f, float.MinValue, float.MaxValue))
                             {
-                                gravity.Direction = gravityDirection;
+                                gravity.Direction = new XnaVec3(gravityDirection.X, gravityDirection.Y, 0f);
                                 _context.HasUnsavedChanges = true;
                             }
 
@@ -318,10 +318,16 @@ public sealed class ModifiersView
                             break;
 
                         case RotationModifier rotation:
-                            float rotationRotationRate = rotation.RotationRate;
-                            if (PropertyTable.DragFloatProperty("Rotation Rate"u8, "The rate at which particles rotate, in radians per second"u8, ref rotationRotationRate, 0.1f, float.MinValue, float.MaxValue))
+                            float rotRateMin = rotation.RotationRateMin;
+                            if (PropertyTable.DragFloatProperty("Rate Min"u8, "Minimum rotation rate in radians per second"u8, ref rotRateMin, 0.1f, float.MinValue, float.MaxValue))
                             {
-                                rotation.RotationRate = rotationRotationRate;
+                                rotation.RotationRateMin = rotRateMin;
+                                _context.HasUnsavedChanges = true;
+                            }
+                            float rotRateMax = rotation.RotationRateMax;
+                            if (PropertyTable.DragFloatProperty("Rate Max"u8, "Maximum rotation rate in radians per second"u8, ref rotRateMax, 0.1f, float.MinValue, float.MaxValue))
+                            {
+                                rotation.RotationRateMax = rotRateMax;
                                 _context.HasUnsavedChanges = true;
                             }
                             break;
@@ -359,10 +365,10 @@ public sealed class ModifiersView
                             break;
 
                         case VortexModifier vortex:
-                            XnaVec2 vortexPosition = vortex.Position;
+                            XnaVec2 vortexPosition = new XnaVec2(vortex.Position.X, vortex.Position.Y);
                             if (PropertyTable.DragVector2Property("Position"u8, "The vortex center relative to the particle emitter"u8, ref vortexPosition, 0.1f, float.MinValue, float.MaxValue))
                             {
-                                vortex.Position = vortexPosition;
+                                vortex.Position = new XnaVec3(vortexPosition.X, vortexPosition.Y, 0f);
                                 _context.HasUnsavedChanges = true;
                             }
 
