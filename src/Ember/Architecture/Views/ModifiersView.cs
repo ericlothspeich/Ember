@@ -616,6 +616,21 @@ public sealed class ModifiersView
                                 colorInterpolator.EndValue = colorInterpolatorEndValue;
                                 _context.HasUnsavedChanges = true;
                             }
+
+                            PropertyTable.EndPropertyTable();
+
+                            Text("Color Curve"u8);
+                            float colorCurveWidth = GetContentRegionAvail().X;
+                            if (CurveEditor.Draw("##color-curve", colorInterpolator.Curve, colorCurveWidth, 150))
+                            {
+                                _context.HasUnsavedChanges = true;
+                            }
+                            if (CurveEditor.DrawPresets("##color-presets", colorInterpolator.Curve))
+                            {
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            PropertyTable.BeginPropertyTable("##interp-props-cont-color"u8);
                             break;
 
                         case HueInterpolator hueInterpolator:
@@ -632,6 +647,21 @@ public sealed class ModifiersView
                                 hueInterpolator.EndValue = hueInterpolatorEndValue;
                                 _context.HasUnsavedChanges = true;
                             }
+
+                            PropertyTable.EndPropertyTable();
+
+                            Text("Hue Curve"u8);
+                            float hueCurveWidth = GetContentRegionAvail().X;
+                            if (CurveEditor.Draw("##hue-curve", hueInterpolator.Curve, hueCurveWidth, 150))
+                            {
+                                _context.HasUnsavedChanges = true;
+                            }
+                            if (CurveEditor.DrawPresets("##hue-presets", hueInterpolator.Curve))
+                            {
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            PropertyTable.BeginPropertyTable("##interp-props-cont-hue"u8);
                             break;
 
                         case OpacityInterpolator opacityInterpolator:
@@ -648,6 +678,21 @@ public sealed class ModifiersView
                                 opacityInterpolator.EndValue = opacityInterpolatorEndValue;
                                 _context.HasUnsavedChanges = true;
                             }
+
+                            PropertyTable.EndPropertyTable();
+
+                            Text("Opacity Curve"u8);
+                            float opacityCurveWidth = GetContentRegionAvail().X;
+                            if (CurveEditor.Draw("##opacity-curve", opacityInterpolator.Curve, opacityCurveWidth, 150))
+                            {
+                                _context.HasUnsavedChanges = true;
+                            }
+                            if (CurveEditor.DrawPresets("##opacity-presets", opacityInterpolator.Curve))
+                            {
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            PropertyTable.BeginPropertyTable("##interp-props-cont-opacity"u8);
                             break;
 
                         case RotationInterpolator rotationInterpolator:
@@ -664,6 +709,21 @@ public sealed class ModifiersView
                                 rotationInterpolator.EndValue = rotationInterpolatorEndValue;
                                 _context.HasUnsavedChanges = true;
                             }
+
+                            PropertyTable.EndPropertyTable();
+
+                            Text("Rotation Curve"u8);
+                            float rotationCurveWidth = GetContentRegionAvail().X;
+                            if (CurveEditor.Draw("##rotation-curve", rotationInterpolator.Curve, rotationCurveWidth, 150))
+                            {
+                                _context.HasUnsavedChanges = true;
+                            }
+                            if (CurveEditor.DrawPresets("##rotation-presets", rotationInterpolator.Curve))
+                            {
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            PropertyTable.BeginPropertyTable("##interp-props-cont-rotation"u8);
                             break;
 
                         case ScaleInterpolator scaleInterpolator:
@@ -680,6 +740,79 @@ public sealed class ModifiersView
                                 scaleInterpolator.EndValue = scaleInterpolatorEndValue;
                                 _context.HasUnsavedChanges = true;
                             }
+
+                            PropertyTable.EndPropertyTable();
+
+                            // Link toggle
+                            bool linked = scaleInterpolator.LinkedCurves;
+                            if (Checkbox("Link X/Y Curves"u8, ref linked))
+                            {
+                                scaleInterpolator.LinkedCurves = linked;
+                                if (linked)
+                                {
+                                    // Copy X curve to Y when linking
+                                    System.Array.Copy(scaleInterpolator.CurveX.Values, scaleInterpolator.CurveY.Values, ParticleCurve.Resolution);
+                                }
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            float curveWidth = GetContentRegionAvail().X;
+
+                            if (linked)
+                            {
+                                Text("Scale Curve"u8);
+                                bool curveChanged = CurveEditor.Draw("##scale-curve-xy", scaleInterpolator.CurveX, curveWidth, 150);
+                                curveChanged |= CurveEditor.DrawPresets("##scale-presets-xy", scaleInterpolator.CurveX);
+                                if (curveChanged)
+                                {
+                                    System.Array.Copy(scaleInterpolator.CurveX.Values, scaleInterpolator.CurveY.Values, ParticleCurve.Resolution);
+                                    // Swap start/end if curve direction changed
+                                    XnaVec2 sv = scaleInterpolator.StartValue;
+                                    XnaVec2 ev = scaleInterpolator.EndValue;
+                                    if (CurveEditor.NormalizeDirection(scaleInterpolator.CurveX, ref sv.X, ref ev.X))
+                                    {
+                                        sv.Y = sv.X; ev.Y = ev.X;
+                                        scaleInterpolator.StartValue = sv;
+                                        scaleInterpolator.EndValue = ev;
+                                    }
+                                    _context.HasUnsavedChanges = true;
+                                }
+                            }
+                            else
+                            {
+                                Text("Scale X Curve"u8);
+                                bool xChanged = CurveEditor.Draw("##scale-curve-x", scaleInterpolator.CurveX, curveWidth, 150);
+                                xChanged |= CurveEditor.DrawPresets("##scale-presets-x", scaleInterpolator.CurveX);
+                                if (xChanged)
+                                {
+                                    XnaVec2 sv = scaleInterpolator.StartValue;
+                                    XnaVec2 ev = scaleInterpolator.EndValue;
+                                    if (CurveEditor.NormalizeDirection(scaleInterpolator.CurveX, ref sv.X, ref ev.X))
+                                    {
+                                        scaleInterpolator.StartValueMin = new XnaVec2(sv.X, scaleInterpolator.StartValueMin.Y);
+                                        scaleInterpolator.EndValueMin = new XnaVec2(ev.X, scaleInterpolator.EndValueMin.Y);
+                                    }
+                                    _context.HasUnsavedChanges = true;
+                                }
+
+                                Spacing();
+                                Text("Scale Y Curve"u8);
+                                bool yChanged = CurveEditor.Draw("##scale-curve-y", scaleInterpolator.CurveY, curveWidth, 150);
+                                yChanged |= CurveEditor.DrawPresets("##scale-presets-y", scaleInterpolator.CurveY);
+                                if (yChanged)
+                                {
+                                    XnaVec2 sv = scaleInterpolator.StartValue;
+                                    XnaVec2 ev = scaleInterpolator.EndValue;
+                                    if (CurveEditor.NormalizeDirection(scaleInterpolator.CurveY, ref sv.Y, ref ev.Y))
+                                    {
+                                        scaleInterpolator.StartValueMin = new XnaVec2(scaleInterpolator.StartValueMin.X, sv.Y);
+                                        scaleInterpolator.EndValueMin = new XnaVec2(scaleInterpolator.EndValueMin.X, ev.Y);
+                                    }
+                                    _context.HasUnsavedChanges = true;
+                                }
+                            }
+
+                            PropertyTable.BeginPropertyTable("##interp-props-cont"u8);
                             break;
 
                         case VelocityInterpolator velocityInterpolator:
@@ -696,6 +829,21 @@ public sealed class ModifiersView
                                 velocityInterpolator.EndValue = velocityInterpolatorEndValue;
                                 _context.HasUnsavedChanges = true;
                             }
+
+                            PropertyTable.EndPropertyTable();
+
+                            Text("Velocity Curve"u8);
+                            float velocityCurveWidth = GetContentRegionAvail().X;
+                            if (CurveEditor.Draw("##velocity-curve", velocityInterpolator.Curve, velocityCurveWidth, 150))
+                            {
+                                _context.HasUnsavedChanges = true;
+                            }
+                            if (CurveEditor.DrawPresets("##velocity-presets", velocityInterpolator.Curve))
+                            {
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            PropertyTable.BeginPropertyTable("##interp-props-cont-velocity"u8);
                             break;
                     }
                     PropertyTable.EndPropertyTable();

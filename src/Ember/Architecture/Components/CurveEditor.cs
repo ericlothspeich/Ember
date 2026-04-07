@@ -149,7 +149,54 @@ public static class CurveEditor
             applied = true;
         }
 
+        // Second row: Flip and Smooth
+        float buttonWidth2 = (availWidth - style.ItemSpacing.X) / 2f;
+        SysVec2 buttonSize2 = new SysVec2(buttonWidth2, 0);
+
+        if (Button("Flip"u8, buttonSize2))
+        {
+            // Invert values vertically (1 becomes 0, 0 becomes 1)
+            for (int i = 0; i < 256; i++)
+                curve.Values[i] = 1f - curve.Values[i];
+            applied = true;
+        }
+
+        SameLine();
+        if (Button("Smooth"u8, buttonSize2))
+        {
+            // Average each value with its neighbors (3-tap box filter)
+            float[] temp = new float[256];
+            temp[0] = curve.Values[0];
+            temp[255] = curve.Values[255];
+            for (int i = 1; i < 255; i++)
+                temp[i] = (curve.Values[i - 1] + curve.Values[i] + curve.Values[i + 1]) / 3f;
+            Array.Copy(temp, curve.Values, 256);
+            applied = true;
+        }
+
         PopID();
         return applied;
+    }
+
+    /// <summary>
+    /// If the curve starts higher than it ends but startValue &lt; endValue (or vice versa),
+    /// swaps the start and end values to match the curve direction, then normalizes
+    /// the curve to always ramp from low to high internally.
+    /// Returns true if values were swapped.
+    /// </summary>
+    public static bool NormalizeDirection(ParticleCurve curve, ref float startValue, ref float endValue)
+    {
+        bool curveDescends = curve.Values[0] > curve.Values[255];
+        bool valuesAscend = startValue < endValue;
+
+        if (curveDescends == valuesAscend && startValue != endValue)
+        {
+            // Swap start and end values
+            float temp = startValue;
+            startValue = endValue;
+            endValue = temp;
+            return true;
+        }
+        return false;
     }
 }
