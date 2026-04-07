@@ -56,7 +56,7 @@ public sealed class ModifiersView
 
             ReadOnlySpan<byte> disabledMessage = [];
 
-            if (_context.ParticleEffect.Emitters.Count == 0)
+            if (_context.ParticlePool.Emitters.Count == 0)
             {
                 disabledMessage = "No particle emitters added"u8;
             }
@@ -259,10 +259,10 @@ public sealed class ModifiersView
                             break;
 
                         case LinearGravityModifier gravity:
-                            XnaVec2 gravityDirection = new XnaVec2(gravity.Direction.X, gravity.Direction.Y);
-                            if (PropertyTable.DragVector2Property("Direction"u8, "The direction vector of the gravitational force"u8, ref gravityDirection, 0.1f, float.MinValue, float.MaxValue))
+                            XnaVec3 gravityDirection = gravity.Direction;
+                            if (PropertyTable.DragVector3Property("Direction"u8, "The direction vector of the gravitational force"u8, ref gravityDirection, 0.1f, float.MinValue, float.MaxValue))
                             {
-                                gravity.Direction = new XnaVec3(gravityDirection.X, gravityDirection.Y, 0f);
+                                gravity.Direction = gravityDirection;
                                 _context.HasUnsavedChanges = true;
                             }
 
@@ -365,10 +365,10 @@ public sealed class ModifiersView
                             break;
 
                         case VortexModifier vortex:
-                            XnaVec2 vortexPosition = new XnaVec2(vortex.Position.X, vortex.Position.Y);
-                            if (PropertyTable.DragVector2Property("Position"u8, "The vortex center relative to the particle emitter"u8, ref vortexPosition, 0.1f, float.MinValue, float.MaxValue))
+                            XnaVec3 vortexPosition = vortex.Position;
+                            if (PropertyTable.DragVector3Property("Position"u8, "The vortex center relative to the particle emitter"u8, ref vortexPosition, 0.1f, float.MinValue, float.MaxValue))
                             {
-                                vortex.Position = new XnaVec3(vortexPosition.X, vortexPosition.Y, 0f);
+                                vortex.Position = vortexPosition;
                                 _context.HasUnsavedChanges = true;
                             }
 
@@ -404,6 +404,36 @@ public sealed class ModifiersView
                             if (PropertyTable.DragFloatProperty("Rotation Angle"u8, "The rotation angle, in radians, applied to gravitational force vectors"u8, ref vortexRotationAngle, 0.1f, float.MinValue, float.MaxValue))
                             {
                                 vortex.RotationAngle = vortexRotationAngle;
+                                _context.HasUnsavedChanges = true;
+                            }
+                            break;
+
+                        case NoiseModifier noise:
+                            float noiseStrength = noise.Strength;
+                            if (PropertyTable.DragFloatProperty("Strength"u8, "How much the noise displaces particles"u8, ref noiseStrength, 1f, 0f, float.MaxValue))
+                            {
+                                noise.Strength = noiseStrength;
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            float noiseFrequency = noise.Frequency;
+                            if (PropertyTable.DragFloatProperty("Frequency"u8, "Scale of noise field. Lower = smoother swirls"u8, ref noiseFrequency, 0.01f, 0.001f, 10f))
+                            {
+                                noise.Frequency = noiseFrequency;
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            float noiseScrollSpeed = noise.ScrollSpeed;
+                            if (PropertyTable.DragFloatProperty("Scroll Speed"u8, "How fast the noise field moves over time"u8, ref noiseScrollSpeed, 0.1f, 0f, float.MaxValue))
+                            {
+                                noise.ScrollSpeed = noiseScrollSpeed;
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            int noiseOctaves = noise.Octaves;
+                            if (PropertyTable.DragIntProperty("Octaves"u8, "Noise layers for more detail (1-4)"u8, ref noiseOctaves, 1, 1, 4))
+                            {
+                                noise.Octaves = noiseOctaves;
                                 _context.HasUnsavedChanges = true;
                             }
                             break;
@@ -713,6 +743,7 @@ public sealed class ModifiersView
                 AddModifierChoice(typeof(VelocityColorModifier), "Velocity Color Modifier"u8, "Changes particle colors dynamically based on their movement speed"u8);
                 AddModifierChoice(typeof(VelocityModifier), "Velocity Modifier"u8, "Applies interpolators to particles based on their velocity magnitude"u8);
                 AddModifierChoice(typeof(VortexModifier), "Vortex Modifier"u8, "Creates a gravitational vortex effect, pulling particles toward a central point"u8);
+                AddModifierChoice(typeof(NoiseModifier), "Noise Modifier"u8, "Displaces particles with 3D noise for organic, turbulent motion"u8);
             }
             EndChild();
 

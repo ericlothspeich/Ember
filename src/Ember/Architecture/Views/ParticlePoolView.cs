@@ -11,7 +11,7 @@ using static Hexa.NET.ImGui.ImGui;
 
 namespace Ember.Architecture.Views;
 
-public sealed class ParticleEffectView
+public sealed class ParticlePoolView
 {
     public const string ViewName = "Particle Effect";
 
@@ -22,7 +22,7 @@ public sealed class ParticleEffectView
     private bool _selectTexture;
 
 
-    public ParticleEffectView(EditorContext context)
+    public ParticlePoolView(EditorContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
         _context = context;
@@ -30,13 +30,13 @@ public sealed class ParticleEffectView
 
     public void Draw()
     {
-        if (_context.ParticleEffect == null)
+        if (_context.ParticlePool == null)
         {
             return;
         }
         if (Begin(ViewName))
         {
-            DrawParticleEffectProperties();
+            DrawParticlePoolProperties();
             DrawParticleEmitterList();
             DrawSelectedEmitterProperties();
             DrawSelectedEmitterProfile();
@@ -47,7 +47,7 @@ public sealed class ParticleEffectView
         DrawSelectTexturePopup();
     }
 
-    private void DrawParticleEffectProperties()
+    private void DrawParticlePoolProperties()
     {
         if (CollapsingHeader("Particle Effect Properties"u8, ImGuiTreeNodeFlags.DefaultOpen))
         {
@@ -73,12 +73,12 @@ public sealed class ParticleEffectView
                     }
 
                     TableNextColumn();
-                    bool autoTrigger = _context.ParticleEffect.AutoTrigger;
+                    bool autoTrigger = _context.ParticlePool.AutoTrigger;
                     if (Checkbox("##particle-effect-auto-trigger"u8, ref autoTrigger))
                     {
-                        _context.ParticleEffect.AutoTrigger = autoTrigger;
+                        _context.ParticlePool.AutoTrigger = autoTrigger;
                         // Propagate to all emitters
-                        foreach (var emitter in _context.ParticleEffect.Emitters)
+                        foreach (var emitter in _context.ParticlePool.Emitters)
                         {
                             emitter.AutoTrigger = autoTrigger;
                         }
@@ -97,14 +97,14 @@ public sealed class ParticleEffectView
                     }
 
                     TableNextColumn();
-                    BeginDisabled(!_context.ParticleEffect.AutoTrigger);
+                    BeginDisabled(!_context.ParticlePool.AutoTrigger);
                     SetNextItemWidth(-1);
-                    float frequency = _context.ParticleEffect.AutoTriggerFrequency;
+                    float frequency = _context.ParticlePool.AutoTriggerFrequency;
                     if (DragFloat("##particle-effect-auto-trigger-frequency"u8, ref frequency, 0.1f, 0.1f, float.MaxValue, "%.2f"u8))
                     {
-                        _context.ParticleEffect.AutoTriggerFrequency = frequency;
+                        _context.ParticlePool.AutoTriggerFrequency = frequency;
                         // Propagate to all emitters
-                        foreach (var emitter in _context.ParticleEffect.Emitters)
+                        foreach (var emitter in _context.ParticlePool.Emitters)
                         {
                             emitter.AutoTriggerFrequency = frequency;
                         }
@@ -134,7 +134,7 @@ public sealed class ParticleEffectView
 
             // If there are no emitters, just display a child window with the
             // the text stating so and return back
-            if (_context.ParticleEffect.Emitters.Count == 0)
+            if (_context.ParticlePool.Emitters.Count == 0)
             {
                 if (BeginChild("##particle-emitter-list-child-window"u8, childWindowSize, childFlags))
                 {
@@ -158,12 +158,12 @@ public sealed class ParticleEffectView
                     TableSetupColumn("##particle-emitter-list-visibility-column"u8, ImGuiTableColumnFlags.WidthFixed, iconColumnWidth);
                     TableSetupColumn("##particle-emitter-list-delete-column"u8, ImGuiTableColumnFlags.WidthFixed, iconColumnWidth);
 
-                    for (int i = 0; i < _context.ParticleEffect.Emitters.Count; i++)
+                    for (int i = 0; i < _context.ParticlePool.Emitters.Count; i++)
                     {
                         TableNextRow();
                         PushID(i);
 
-                        ParticleEmitter emitter = _context.ParticleEffect.Emitters[i];
+                        ParticleEmitter emitter = _context.ParticlePool.Emitters[i];
                         bool isLocked = _context.IsLocked(emitter);
                         bool isSelected = emitter == _context.SelectedEmitter;
                         uint buttonColor = isSelected ? GetColorU32(ImGuiCol.Button) : GetColorU32(SysVec4.Zero);
@@ -328,12 +328,37 @@ public sealed class ParticleEffectView
                         _context.HasUnsavedChanges = true;
                     }
 
+                    // Prewarm
+                    float prewarm = emitter.PrewarmSeconds;
+                    if (PropertyTable.DragFloatProperty("Prewarm"u8, "Seconds to pre-simulate on start. Effect appears already running."u8, ref prewarm, 0.1f, 0f, 30f))
+                    {
+                        emitter.PrewarmSeconds = prewarm;
+                        _context.HasUnsavedChanges = true;
+                    }
+
                     // Offset Property
                     XnaVec2 emitterOffset = emitter.Offset;
                     if (PropertyTable.DragVector2Property("Offset"u8, "The position offset applied to this emitter from the effect position"u8, ref emitterOffset, 1.0f, float.MinValue, float.MaxValue))
                     {
                         emitter.Offset = emitterOffset;
                         _context.HasUnsavedChanges = true;
+                    }
+
+                    // Blend Mode
+                    ReadOnlySpan<byte> blendPreview = emitter.BlendMode == ParticleBlendMode.Additive ? "Additive"u8 : "Alpha Blend"u8;
+                    if (PropertyTable.BeginComboProperty("Blend Mode"u8, "The blending mode used when rendering particles"u8, blendPreview))
+                    {
+                        if (PropertyTable.ComboItem("Alpha Blend"u8, "Standard transparency blending"u8, emitter.BlendMode == ParticleBlendMode.AlphaBlend))
+                        {
+                            emitter.BlendMode = ParticleBlendMode.AlphaBlend;
+                            _context.HasUnsavedChanges = true;
+                        }
+                        if (PropertyTable.ComboItem("Additive"u8, "Colors add together, creates glow and fire effects"u8, emitter.BlendMode == ParticleBlendMode.Additive))
+                        {
+                            emitter.BlendMode = ParticleBlendMode.Additive;
+                            _context.HasUnsavedChanges = true;
+                        }
+                        PropertyTable.EndComboProperty();
                     }
 
                     PropertyTable.EndPropertyTable();
@@ -629,8 +654,8 @@ public sealed class ParticleEffectView
                             break;
 
                         case SprayProfile spray:
-                            XnaVec2 sprayDirection = spray.Direction;
-                            if (PropertyTable.DragVector2Property("Direction"u8, "The central direction vector of the spray"u8, ref sprayDirection, 0.1f, float.MinValue, float.MaxValue))
+                            XnaVec3 sprayDirection = spray.Direction;
+                            if (PropertyTable.DragVector3Property("Direction"u8, "The central direction vector of the spray"u8, ref sprayDirection, 0.1f, float.MinValue, float.MaxValue))
                             {
                                 spray.Direction = sprayDirection;
                                 _context.HasUnsavedChanges = true;
@@ -837,7 +862,7 @@ public sealed class ParticleEffectView
 
             // Store as the particle texture
             _context.ParticleTexture = texture;
-            _context.ParticleEffect.Texture = texture;
+            _context.ParticlePool.Texture = texture;
 
             _context.HasUnsavedChanges = true;
         }

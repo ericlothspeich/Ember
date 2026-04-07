@@ -84,8 +84,8 @@ public sealed class DockSpaceView
         uint centerNodeId;
 
         DockBuilderSplitNode(DockSpaceId, ImGuiDir.Down, 0.25f, &bottomNodeId, &topNodeId);
-        DockBuilderSplitNode(topNodeId, ImGuiDir.Left, 0.30f, &leftNodeId, &centerNodeId);
-        DockBuilderSplitNode(centerNodeId, ImGuiDir.Right, 0.30f, &rightNodeId, &centerNodeId);
+        DockBuilderSplitNode(topNodeId, ImGuiDir.Left, 0.25f, &leftNodeId, &centerNodeId);
+        DockBuilderSplitNode(centerNodeId, ImGuiDir.Right, 0.333f, &rightNodeId, &centerNodeId);
 
         ImGuiDockNodePtr bottomNodePtr = DockBuilderGetNode(bottomNodeId);
         if (!bottomNodePtr.IsNull)
@@ -109,7 +109,7 @@ public sealed class DockSpaceView
         LeftPanelDockId = leftNodeId;
         RightPanelDockId = rightNodeId;
 
-        DockBuilderDockWindow(ParticleEffectView.ViewName, LeftPanelDockId);
+        DockBuilderDockWindow(ParticlePoolView.ViewName, LeftPanelDockId);
         DockBuilderDockWindow(ModifiersView.ViewName, RightPanelDockId);
     }
 

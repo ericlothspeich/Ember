@@ -187,6 +187,45 @@ public static class PropertyTable
         return changed;
     }
 
+    public static bool DragVector3Property(ReadOnlySpan<byte> label, ReadOnlySpan<byte> tooltip, ref XnaVec3 value, float step, float min, float max)
+    {
+        bool changed = false;
+
+        PushID(label);
+
+        TableNextRow();
+        Label(label, tooltip);
+        TableNextColumn();
+
+        ImGuiStylePtr stylePtr = GetStyle();
+        float availWidth = GetContentRegionAvail().X;
+        float itemSpacingWidth = stylePtr.ItemSpacing.X;
+        float dragWidth = (availWidth - itemSpacingWidth * 2f) / 3f;
+
+        SetNextItemWidth(dragWidth);
+        if (DragFloat("##value-x"u8, ref value.X, step, min, max, "X: %.2F"))
+        {
+            changed = true;
+        }
+
+        SameLine();
+        SetNextItemWidth(dragWidth);
+        if (DragFloat("##value-y"u8, ref value.Y, step, min, max, "Y: %.2F"))
+        {
+            changed = true;
+        }
+
+        SameLine();
+        SetNextItemWidth(dragWidth);
+        if (DragFloat("##value-z"u8, ref value.Z, step, min, max, "Z: %.2F"))
+        {
+            changed = true;
+        }
+
+        PopID();
+        return changed;
+    }
+
     /// <summary>
     /// Color property that works with HSL stored as Vector3 (H 0-360, S 0-1, L 0-1).
     /// Uses Ifrit's static HslColor class for conversions.
