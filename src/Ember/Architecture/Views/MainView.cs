@@ -9,7 +9,7 @@ public sealed class MainView
     private readonly EditorContext _context;
     private readonly MainMenuBarView _mainMenuBarView;
     private readonly DockSpaceView _dockSpaceView;
-    private readonly ParticlePoolView _particleEffectView;
+    private readonly ParticleSystemView _particleEffectView;
     private readonly ModifiersView _modifiersView;
 
     public MainView(EditorContext context)
@@ -26,7 +26,7 @@ public sealed class MainView
     {
         _mainMenuBarView.Draw();
 
-        if (_context.ParticlePool != null)
+        if (_context.ParticleSystem != null)
         {
             _dockSpaceView.Draw();
             _particleEffectView.Draw();

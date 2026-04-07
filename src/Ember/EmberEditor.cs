@@ -67,7 +67,7 @@ public class EmberEditor : Game
 
     private void OnClientSizeChanged(object sender, EventArgs e)
     {
-        _context.CenterParticlePool();
+        _context.CenterParticleSystem();
     }
 
     protected override unsafe void Initialize()
@@ -130,7 +130,7 @@ public class EmberEditor : Game
         {
             return;
         }
-        if (_context.ParticlePool is ParticlePool particleEffect)
+        if (_context.ParticleSystem is ParticleSystem particleEffect)
         {
             ImGuiIOPtr ioPtr = ImGui.GetIO();
 
@@ -247,7 +247,7 @@ public class EmberEditor : Game
     {
         GraphicsDevice.Clear(_context.ClearColor);
 
-        if (_context.ParticlePool is ParticlePool particleEffect)
+        if (_context.ParticleSystem is ParticleSystem particleEffect)
         {
             int w = GraphicsDevice.Viewport.Width;
             int h = GraphicsDevice.Viewport.Height;
@@ -314,7 +314,7 @@ public class EmberEditor : Game
         s_frameRate = ImGui.GetIO().Framerate;
 
 
-        int liveCount = (_context.ParticlePool as ParticlePool)?.TotalLiveCount ?? 0;
+        int liveCount = (_context.ParticleSystem as ParticleSystem)?.TotalLiveCount ?? 0;
         Window.Title = string.Format(CultureInfo.InvariantCulture, s_windowTitle, s_version, s_frameRate, liveCount, _context.HasUnsavedChanges ? "*" : string.Empty);
     }
 }

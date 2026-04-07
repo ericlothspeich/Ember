@@ -11,9 +11,9 @@ using static Hexa.NET.ImGui.ImGui;
 
 namespace Ember.Architecture.Views;
 
-public sealed class ParticlePoolView
+public sealed class ParticleSystemView
 {
-    public const string ViewName = "Particle Effect";
+    public const string ViewName = "Particle System";
 
     private readonly EditorContext _context;
 
@@ -22,7 +22,7 @@ public sealed class ParticlePoolView
     private bool _selectTexture;
 
 
-    public ParticlePoolView(EditorContext context)
+    public ParticleSystemView(EditorContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
         _context = context;
@@ -30,13 +30,13 @@ public sealed class ParticlePoolView
 
     public void Draw()
     {
-        if (_context.ParticlePool == null)
+        if (_context.ParticleSystem == null)
         {
             return;
         }
         if (Begin(ViewName))
         {
-            DrawParticlePoolProperties();
+            DrawParticleSystemProperties();
             DrawParticleEmitterList();
             DrawSelectedEmitterProperties();
             DrawSelectedEmitterProfile();
@@ -47,9 +47,9 @@ public sealed class ParticlePoolView
         DrawSelectTexturePopup();
     }
 
-    private void DrawParticlePoolProperties()
+    private void DrawParticleSystemProperties()
     {
-        if (CollapsingHeader("Particle Effect Properties"u8, ImGuiTreeNodeFlags.DefaultOpen))
+        if (CollapsingHeader("Particle System Properties"u8, ImGuiTreeNodeFlags.DefaultOpen))
         {
             ImGuiChildFlags childFlags = ImGuiChildFlags.Borders
                                          | ImGuiChildFlags.AutoResizeY;
@@ -73,44 +73,18 @@ public sealed class ParticlePoolView
                     }
 
                     TableNextColumn();
-                    bool autoTrigger = _context.ParticlePool.AutoTrigger;
+                    bool autoTrigger = _context.ParticleSystem.AutoTrigger;
                     if (Checkbox("##particle-effect-auto-trigger"u8, ref autoTrigger))
                     {
-                        _context.ParticlePool.AutoTrigger = autoTrigger;
+                        _context.ParticleSystem.AutoTrigger = autoTrigger;
                         // Propagate to all emitters
-                        foreach (var emitter in _context.ParticlePool.Emitters)
+                        foreach (var emitter in _context.ParticleSystem.Emitters)
                         {
                             emitter.AutoTrigger = autoTrigger;
                         }
                         _context.HasUnsavedChanges = true;
                     }
 
-                    // Auto Trigger Frequency
-                    TableNextRow();
-                    TableNextColumn();
-                    AlignTextToFramePadding();
-                    Text("Auto Trigger Frequency"u8);
-
-                    if (IsItemHovered(ImGuiHoveredFlags.DelayNormal))
-                    {
-                        SetTooltip("The frequency, in seconds, at which this particle effect automatically triggers emitters"u8);
-                    }
-
-                    TableNextColumn();
-                    BeginDisabled(!_context.ParticlePool.AutoTrigger);
-                    SetNextItemWidth(-1);
-                    float frequency = _context.ParticlePool.AutoTriggerFrequency;
-                    if (DragFloat("##particle-effect-auto-trigger-frequency"u8, ref frequency, 0.1f, 0.1f, float.MaxValue, "%.2f"u8))
-                    {
-                        _context.ParticlePool.AutoTriggerFrequency = frequency;
-                        // Propagate to all emitters
-                        foreach (var emitter in _context.ParticlePool.Emitters)
-                        {
-                            emitter.AutoTriggerFrequency = frequency;
-                        }
-                        _context.HasUnsavedChanges = true;
-                    }
-                    EndDisabled();
                     EndTable();
                 }
             }
@@ -134,7 +108,7 @@ public sealed class ParticlePoolView
 
             // If there are no emitters, just display a child window with the
             // the text stating so and return back
-            if (_context.ParticlePool.Emitters.Count == 0)
+            if (_context.ParticleSystem.Emitters.Count == 0)
             {
                 if (BeginChild("##particle-emitter-list-child-window"u8, childWindowSize, childFlags))
                 {
@@ -158,12 +132,12 @@ public sealed class ParticlePoolView
                     TableSetupColumn("##particle-emitter-list-visibility-column"u8, ImGuiTableColumnFlags.WidthFixed, iconColumnWidth);
                     TableSetupColumn("##particle-emitter-list-delete-column"u8, ImGuiTableColumnFlags.WidthFixed, iconColumnWidth);
 
-                    for (int i = 0; i < _context.ParticlePool.Emitters.Count; i++)
+                    for (int i = 0; i < _context.ParticleSystem.Emitters.Count; i++)
                     {
                         TableNextRow();
                         PushID(i);
 
-                        ParticleEmitter emitter = _context.ParticlePool.Emitters[i];
+                        ParticleEmitter emitter = _context.ParticleSystem.Emitters[i];
                         bool isLocked = _context.IsLocked(emitter);
                         bool isSelected = emitter == _context.SelectedEmitter;
                         uint buttonColor = isSelected ? GetColorU32(ImGuiCol.Button) : GetColorU32(SysVec4.Zero);
@@ -325,6 +299,14 @@ public sealed class ParticlePoolView
                     if (PropertyTable.DragFloatProperty("Lifetime"u8, "The amount of time, in seconds, that each particle released from this emitter will live"u8, ref emitterLifetime, 0.1f, 0.0f, float.MaxValue))
                     {
                         emitter.Lifetime = emitterLifetime;
+                        _context.HasUnsavedChanges = true;
+                    }
+
+                    // Emit Frequency
+                    float emitFreq = emitter.AutoTriggerFrequency;
+                    if (PropertyTable.DragFloatProperty("Emit Frequency"u8, "How often this emitter spawns particles, in seconds"u8, ref emitFreq, 0.01f, 0.001f, 10f))
+                    {
+                        emitter.AutoTriggerFrequency = emitFreq;
                         _context.HasUnsavedChanges = true;
                     }
 
@@ -862,7 +844,7 @@ public sealed class ParticlePoolView
 
             // Store as the particle texture
             _context.ParticleTexture = texture;
-            _context.ParticlePool.Texture = texture;
+            _context.ParticleSystem.Texture = texture;
 
             _context.HasUnsavedChanges = true;
         }

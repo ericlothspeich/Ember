@@ -56,7 +56,7 @@ public sealed class ModifiersView
 
             ReadOnlySpan<byte> disabledMessage = [];
 
-            if (_context.ParticlePool.Emitters.Count == 0)
+            if (_context.ParticleSystem.Emitters.Count == 0)
             {
                 disabledMessage = "No particle emitters added"u8;
             }

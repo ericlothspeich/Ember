@@ -109,7 +109,7 @@ public sealed class DockSpaceView
         LeftPanelDockId = leftNodeId;
         RightPanelDockId = rightNodeId;
 
-        DockBuilderDockWindow(ParticlePoolView.ViewName, LeftPanelDockId);
+        DockBuilderDockWindow(ParticleSystemView.ViewName, LeftPanelDockId);
         DockBuilderDockWindow(ModifiersView.ViewName, RightPanelDockId);
     }
 

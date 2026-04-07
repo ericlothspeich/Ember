@@ -38,7 +38,7 @@ public sealed class EditorContext : IDisposable
     // The particle shader effect (loaded once, shared by all effects)
     private Effect _particleEffect;
 
-    public ParticlePool ParticlePool { get; private set; }
+    public ParticleSystem ParticleSystem { get; private set; }
     public ParticleEmitter SelectedEmitter { get; private set; }
     public int SelectedEmitterIndex { get; private set; } = -1;
 
@@ -111,7 +111,7 @@ public sealed class EditorContext : IDisposable
     }
 
     public bool HasUnsavedChanges { get; set; }
-    public bool IsProjectOpen => ParticlePool != null;
+    public bool IsProjectOpen => ParticleSystem != null;
     public bool IsProjectPaused { get; private set; } = false;
     public bool IsSavePromptPending => _pendingAction != PendingAction.None;
 
@@ -274,19 +274,39 @@ public sealed class EditorContext : IDisposable
         CancelPendingAction();
     }
 
-    public void CenterParticlePool()
+    public void CenterParticleSystem()
     {
-        if (ParticlePool == null)
+        if (ParticleSystem == null)
         {
             return;
         }
 
-        ParticlePool.WorldPosition = Vector3.Zero;
+        ParticleSystem.WorldPosition = Vector3.Zero;
+    }
+
+    internal string GenerateEmitterName()
+    {
+        int index = 0;
+        while (true)
+        {
+            string name = "Emitter" + index;
+            bool exists = false;
+            for (int i = 0; i < ParticleSystem.Emitters.Count; i++)
+            {
+                if (ParticleSystem.Emitters[i].Name == name)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) return name;
+            index++;
+        }
     }
 
     public void AddEmitter()
     {
-        if (ParticlePool == null)
+        if (ParticleSystem == null)
         {
             return;
         }
@@ -295,11 +315,28 @@ public sealed class EditorContext : IDisposable
         {
             Profile = new PointProfile(),
             Lifetime = 1f,
-            Name = nameof(ParticleEmitter)
+            SpeedMin = 50f,
+            SpeedMax = 100f,
+            ColorStartMin = new Vector3(0f, 0f, 1f),
+            ColorStartMax = new Vector3(0f, 0f, 1f),
+            OpacityMin = 1f,
+            OpacityMax = 1f,
+            ScaleMin = new Vector2(0f, 0f),
+            ScaleMax = new Vector2(0.25f, 0.25f),
+            Quantity = 1,
+            AutoTrigger = ParticleSystem.AutoTrigger,
+            AutoTriggerFrequency = 0.01f,
+            Name = GenerateEmitterName()
         };
 
-        int index = ParticlePool.Emitters.Count;
-        ParticlePool.Emitters.Add(emitter);
+        // Inherit texture settings from existing texture
+        if (ParticleTexture != null)
+        {
+            emitter.TextureSize = new Microsoft.Xna.Framework.Vector2(ParticleTexture.Width, ParticleTexture.Height);
+        }
+
+        int index = ParticleSystem.Emitters.Count;
+        ParticleSystem.Emitters.Add(emitter);
         TrackLock(emitter);
         SelectEmitter(index);
         HasUnsavedChanges = true;
@@ -307,14 +344,14 @@ public sealed class EditorContext : IDisposable
 
     public void SelectEmitter(int index)
     {
-        if (ParticlePool == null || index < 0 || index >= ParticlePool.Emitters.Count)
+        if (ParticleSystem == null || index < 0 || index >= ParticleSystem.Emitters.Count)
         {
             SelectedEmitter = null;
             SelectedEmitterIndex = -1;
         }
         else
         {
-            SelectedEmitter = ParticlePool.Emitters[index];
+            SelectedEmitter = ParticleSystem.Emitters[index];
             SelectedEmitterIndex = index;
         }
 
@@ -324,13 +361,13 @@ public sealed class EditorContext : IDisposable
 
     public void RemoveEmitter(int index)
     {
-        if (ParticlePool == null || index < 0 || index >= ParticlePool.Emitters.Count)
+        if (ParticleSystem == null || index < 0 || index >= ParticleSystem.Emitters.Count)
         {
             return;
         }
 
-        ParticleEmitter emitter = ParticlePool.Emitters[index];
-        ParticlePool.Emitters.RemoveAt(index);
+        ParticleEmitter emitter = ParticleSystem.Emitters[index];
+        ParticleSystem.Emitters.RemoveAt(index);
         UntrackLock(emitter);
 
         // Update selection if we removed the selected emitter
@@ -345,19 +382,19 @@ public sealed class EditorContext : IDisposable
 
     public void ReorderEmitters(int fromIndex, int toIndex)
     {
-        if (ParticlePool == null || fromIndex < 0 || fromIndex >= ParticlePool.Emitters.Count || toIndex < 0 || toIndex >= ParticlePool.Emitters.Count)
+        if (ParticleSystem == null || fromIndex < 0 || fromIndex >= ParticleSystem.Emitters.Count || toIndex < 0 || toIndex >= ParticleSystem.Emitters.Count)
         {
             return;
         }
 
-        ParticleEmitter moving = ParticlePool.Emitters[fromIndex];
-        ParticlePool.Emitters.RemoveAt(fromIndex);
-        ParticlePool.Emitters.Insert(toIndex, moving);
+        ParticleEmitter moving = ParticleSystem.Emitters[fromIndex];
+        ParticleSystem.Emitters.RemoveAt(fromIndex);
+        ParticleSystem.Emitters.Insert(toIndex, moving);
 
         // Maintain current selection by re-selecting at the potentially new index
         if (SelectedEmitter != null)
         {
-            int currentIndex = ParticlePool.Emitters.IndexOf(SelectedEmitter);
+            int currentIndex = ParticleSystem.Emitters.IndexOf(SelectedEmitter);
             SelectEmitter(currentIndex);
         }
 
@@ -740,10 +777,11 @@ public sealed class EditorContext : IDisposable
         LastUsedTextureDirectory = ProjectDirectory;
         LastUsedProjectDirectory = ProjectDirectory;
 
-        ParticlePool = new ParticlePool(_graphicsDevice, _particleEffect.Clone());
-        ParticlePool.Name = ProjectName;
+        ParticleSystem = new ParticleSystem(_graphicsDevice, _particleEffect.Clone());
+        ParticleSystem.Name = ProjectName;
+        ParticleSystem.ForceAutoTrigger = true;
 
-        CenterParticlePool();
+        CenterParticleSystem();
 
         HasUnsavedChanges = true;
         SaveProject();
@@ -769,11 +807,12 @@ public sealed class EditorContext : IDisposable
         // Load ember data from file
         EmberData data = EmberLoader.Load(ProjectFilePath);
 
-        // Reconstruct ParticlePool
-        ParticlePool = new ParticlePool(_graphicsDevice, _particleEffect.Clone());
-        ParticlePool.Name = data.Name;
-        ParticlePool.AutoTrigger = data.AutoTrigger;
-        ParticlePool.AutoTriggerFrequency = data.AutoTriggerFrequency;
+        // Reconstruct ParticleSystem
+        ParticleSystem = new ParticleSystem(_graphicsDevice, _particleEffect.Clone());
+        ParticleSystem.Name = data.Name;
+        ParticleSystem.AutoTrigger = data.AutoTrigger;
+        ParticleSystem.AutoTriggerFrequency = data.AutoTriggerFrequency;
+        ParticleSystem.ForceAutoTrigger = true;
 
         // Load textures and create emitters
         foreach (EmberEmitterData emitterData in data.Emitters)
@@ -793,14 +832,14 @@ public sealed class EditorContext : IDisposable
                         atlasWidth = tex.Width;
                         atlasHeight = tex.Height;
                         ParticleTexture = tex;
-                        ParticlePool.Texture = tex;
+                        ParticleSystem.Texture = tex;
                     }
                 }
             }
 
             ParticleEmitter emitter = EmberLoader.CreateEmitter(emitterData, data, atlasWidth, atlasHeight);
             emitter.Name = emitterData.Name ?? nameof(ParticleEmitter);
-            ParticlePool.Emitters.Add(emitter);
+            ParticleSystem.Emitters.Add(emitter);
             TrackLock(emitter);
 
             // Track locks for modifiers and interpolators
@@ -820,7 +859,7 @@ public sealed class EditorContext : IDisposable
             }
         }
 
-        CenterParticlePool();
+        CenterParticleSystem();
         AddRecentFile(filePath);
 
         HasUnsavedChanges = false;
@@ -828,19 +867,19 @@ public sealed class EditorContext : IDisposable
 
     public void SaveProject()
     {
-        if (ParticlePool == null)
+        if (ParticleSystem == null)
         {
             return;
         }
 
         var context = new EmberWriteContext
         {
-            EffectName = ParticlePool.Name ?? ProjectName,
-            AutoTrigger = ParticlePool.AutoTrigger,
-            AutoTriggerFrequency = ParticlePool.AutoTriggerFrequency,
+            EffectName = ParticleSystem.Name ?? ProjectName,
+            AutoTrigger = ParticleSystem.AutoTrigger,
+            AutoTriggerFrequency = ParticleSystem.AutoTriggerFrequency,
         };
 
-        foreach (ParticleEmitter emitter in ParticlePool.Emitters)
+        foreach (ParticleEmitter emitter in ParticleSystem.Emitters)
         {
             var emitterData = new EmitterWriteData
             {
@@ -868,10 +907,10 @@ public sealed class EditorContext : IDisposable
 
     public void CloseProject()
     {
-        if (ParticlePool != null)
+        if (ParticleSystem != null)
         {
-            ParticlePool.Dispose();
-            ParticlePool = null;
+            ParticleSystem.Dispose();
+            ParticleSystem = null;
         }
 
         ParticleTexture = null;
