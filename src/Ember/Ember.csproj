@@ -30,10 +30,12 @@
     <None Include="Content/**/*" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="Icon.ico" LogicalName="Icon.ico" />
     <EmbeddedResource Include="Icon.bmp" LogicalName="Icon.bmp" />
+    <EmbeddedResource Include="Content/fonts/JetBrainsMono-Regular.ttf" LogicalName="JetBrainsMono-Regular.ttf" />
+    <EmbeddedResource Include="Content/fonts/fa-solid-900.ttf" LogicalName="fa-solid-900.ttf" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\tripleluckylink\IfritParticles\IfritParticles.csproj" />
+    <ProjectReference Include="..\..\..\tripleluckylink\IfritParticles\IfritParticles.DesktopGL.csproj" />
   </ItemGroup>
 
 
