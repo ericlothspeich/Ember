@@ -154,6 +154,15 @@ public sealed class ParticleSystemView
                             _context.SelectEmitter(i);
                         }
 
+                        if (BeginPopupContextItem("##emitter-context"u8, ImGuiPopupFlags.MouseButtonRight))
+                        {
+                            if (MenuItem("Duplicate"u8))
+                            {
+                                _context.DuplicateEmitter(i);
+                            }
+                            EndPopup();
+                        }
+
                         if (BeginDragDropSource(ImGuiDragDropFlags.None))
                         {
                             int* indexPtr = &i;

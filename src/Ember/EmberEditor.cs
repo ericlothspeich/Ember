@@ -201,20 +201,20 @@ public class EmberEditor : Game
 
                 if (scrollDeltaX != 0 || scrollDeltaY != 0)
                 {
-                    if (ctrlHeld)
-                    {
-                        _zoomVel += scrollDeltaY * 0.0003f;
-                    }
-                    else if (shiftHeld)
+                    if (shiftHeld)
                     {
                         float panScale = _camDistance * 0.00015f;
                         _panVelX += scrollDeltaX * panScale;
                         _panVelY += scrollDeltaY * panScale;
                     }
-                    else
+                    else if (ctrlHeld)
                     {
                         _orbitVelX += scrollDeltaX * 0.0006f;
                         _orbitVelY += scrollDeltaY * 0.0006f;
+                    }
+                    else
+                    {
+                        _zoomVel += scrollDeltaY * 0.0003f;
                     }
                 }
             }
@@ -239,6 +239,8 @@ public class EmberEditor : Game
             _panVelY *= ScrollDecay;
             _zoomVel *= ScrollDecay;
 
+            IfritParticles.Modifiers.NoiseModifier.BeginFrame();
+            IfritParticles.Modifiers.SineWaveModifier.BeginFrame();
             particleEffect.Update(gameTime);
         }
     }

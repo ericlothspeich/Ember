@@ -1,10 +1,10 @@
-# Ember - MonoGame.Extended Particle Editor
+# Ember - IfritParticles Editor
 
 ![Ember Banner](./logo/ember-banner.png)
 
-## An ImGui-based particle system editor for MonoGame Extended's particle system
+## An ImGui-based editor for the IfritParticles GPU-instanced particle system
 
-![Ember Editor](https://img.shields.io/badge/MonoGame-Extended-blue)
+![Ember Editor](https://img.shields.io/badge/Particles-IfritParticles-orange)
 ![.NET 8](https://img.shields.io/badge/.NET-8.0-purple)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 
@@ -14,18 +14,19 @@
 
 - **Visual Particle Editor**: Real-time particle system editing with immediate visual feedback
 - **Multiple Emitters**: Support for multiple particle emitters within a single effect
+- **3D World-Space Positioning**: Position and orient particle systems in 3D using view and projection matrices
+- **Curve-Based Parameters**: Drive parameter values from curves, with a built-in freehand curve editor
 - **HSL Color Space**: Advanced color manipulation using HSL (Hue, Saturation, Lightness) format
 - **Live Preview**: See changes instantly as you modify parameters
 
 ### Comprehensive Modifier System
-
-Ember provides full support for all MonoGame Extended particle modifiers:
 
 #### Core Modifiers
 
 - **Age Modifier**: Applies interpolators to particles based on their lifetime progression
 - **Drag Modifier**: Simulates fluid resistance with configurable density and drag coefficients
 - **Linear Gravity Modifier**: Applies constant directional forces (gravity, wind effects)
+- **Noise Modifier**: Applies pseudo-random turbulence to particle motion
 - **Opacity Fast Fade Modifier**: Rapid linear opacity fade-out effects
 - **Rotation Modifier**: Controls particle rotation rate over time
 - **Velocity Color Modifier**: Changes particle colors based on movement speed
@@ -41,8 +42,6 @@ Ember provides full support for all MonoGame Extended particle modifiers:
 All container modifiers support configurable restitution coefficients for realistic bouncing behavior.
 
 ### Emitter Profiles
-
-Support for all MonoGame Extended emission patterns:
 
 - **Point Profile**: Emit from a single point with random directions
 - **Line Profile**: Emit uniformly along a line segment
@@ -71,21 +70,18 @@ Interpolators integrate with **Age Modifier** (time-based) and **Velocity Modifi
 ### Prerequisites
 
 - .NET 8.0 SDK or later
+- The `IfritParticles` project, checked out at the sibling path `../../../tripleluckylink/IfritParticles/` relative to this repo (Ember references `IfritParticles.DesktopGL.csproj` from there)
 
 ### Building from Source
 
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/Monogame-Extended/Ember.git
+   git clone https://github.com/ericlothspeich/Ember.git
    cd Ember
    ```
 
-2. **Initialize submodules**
-
-   ```bash
-   git submodule update --init --recursive
-   ```
+2. **Make sure `tripleluckylink/IfritParticles` is checked out next to this repo** (the csproj reference uses a relative path)
 
 3. **Build the project**
 
@@ -164,9 +160,9 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Acknowledgments
 
-- [Mercury Particle Engine](https://github.com/Matthew-Davey/mercury-particle-engine) - The original particle engine that MonoGame Extended's particle system is based on
+- [Mercury Particle Engine](https://github.com/Matthew-Davey/mercury-particle-engine) - The original CPU particle engine whose modifier/profile/interpolator design lineage Ember inherits
 - [MonoGame Foundation](https://www.monogame.net/) - For the excellent MonoGame framework
-- [MonoGame Extended Contributors](https://github.com/MonoGame-Extended/MonoGame.Extended) - For the comprehensive particle system
+- [MonoGame.Extended](https://github.com/MonoGame-Extended/MonoGame.Extended) - The original Ember repo's particle backend before the IfritParticles migration
 - [Hexa.NET.ImGui](https://github.com/HexaEngine/Hexa.NET.ImGui) - For the Dear ImGui C# wrapper
 - [JetBrains](https://www.jetbrains.com/) - For the mono font
 - [Font Awesome](https://fontawesome.com/) - For icons
@@ -174,4 +170,3 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Support
 
 - Create an issue for bug reports or feature requests
-- Join the [MonoGame Extended Discord](https://discord.gg/FvZ8Z7EzPJ) for questions and community support

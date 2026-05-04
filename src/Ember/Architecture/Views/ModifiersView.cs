@@ -437,6 +437,96 @@ public sealed class ModifiersView
                                 _context.HasUnsavedChanges = true;
                             }
                             break;
+
+                        case SineWaveModifier sineWave:
+                            ReadOnlySpan<byte> sineModePreview = sineWave.Mode switch
+                            {
+                                SineWaveMode.Radial => "Radial"u8,
+                                SineWaveMode.Transverse => "Transverse"u8,
+                                SineWaveMode.Trail => "Trail"u8,
+                                _ => "Linear"u8
+                            };
+                            if (PropertyTable.BeginComboProperty("Mode"u8, "Linear: directional wave. Radial: radiates from emitter. Transverse: each particle waves perpendicular to its own travel direction. Trail: each emission direction traces a fixed sinusoidal trail in space — same-direction particles follow the same curved path (set Speed=0 for static spiral arms)."u8, sineModePreview))
+                            {
+                                if (PropertyTable.ComboItem("Linear"u8, "Wave travels along Propagation Axis; particles oscillate along Displacement Axis"u8, sineWave.Mode == SineWaveMode.Linear))
+                                {
+                                    sineWave.Mode = SineWaveMode.Linear;
+                                    _context.HasUnsavedChanges = true;
+                                }
+                                if (PropertyTable.ComboItem("Radial"u8, "Wave radiates outward from emitter; particles oscillate along their radial direction"u8, sineWave.Mode == SineWaveMode.Radial))
+                                {
+                                    sineWave.Mode = SineWaveMode.Radial;
+                                    _context.HasUnsavedChanges = true;
+                                }
+                                if (PropertyTable.ComboItem("Transverse"u8, "Each particle oscillates perpendicular to its direction of travel — wave 'rides along' a radial spray"u8, sineWave.Mode == SineWaveMode.Transverse))
+                                {
+                                    sineWave.Mode = SineWaveMode.Transverse;
+                                    _context.HasUnsavedChanges = true;
+                                }
+                                if (PropertyTable.ComboItem("Trail"u8, "Lateral offset depends on radial distance, so every particle emitted in the same direction traces the same sinusoidal trail through space. Speed=0 = static spiral arms; Speed>0 = pattern rotates over time."u8, sineWave.Mode == SineWaveMode.Trail))
+                                {
+                                    sineWave.Mode = SineWaveMode.Trail;
+                                    _context.HasUnsavedChanges = true;
+                                }
+                                PropertyTable.EndComboProperty();
+                            }
+
+                            if (sineWave.Mode == SineWaveMode.Linear)
+                            {
+                                Vector3 sinePropAxis = sineWave.PropagationAxis;
+                                if (PropertyTable.DragVector3Property("Propagation Axis"u8, "Direction the wave travels through space (set Z=0 for 2D)"u8, ref sinePropAxis, 0.01f, -1f, 1f))
+                                {
+                                    sineWave.PropagationAxis = sinePropAxis;
+                                    _context.HasUnsavedChanges = true;
+                                }
+
+                                Vector3 sineDispAxis = sineWave.DisplacementAxis;
+                                if (PropertyTable.DragVector3Property("Displacement Axis"u8, "Direction particles oscillate (keep perpendicular to propagation; set Z=0 for 2D)"u8, ref sineDispAxis, 0.01f, -1f, 1f))
+                                {
+                                    sineWave.DisplacementAxis = sineDispAxis;
+                                    _context.HasUnsavedChanges = true;
+                                }
+                            }
+                            else if (sineWave.Mode == SineWaveMode.Transverse)
+                            {
+                                Vector3 sinePlaneNormal = sineWave.PlaneNormal;
+                                if (PropertyTable.DragVector3Property("Plane Normal"u8, "Reference axis for picking the perpendicular displacement direction. Leave at +Z for 2D scenes."u8, ref sinePlaneNormal, 0.01f, -1f, 1f))
+                                {
+                                    sineWave.PlaneNormal = sinePlaneNormal;
+                                    _context.HasUnsavedChanges = true;
+                                }
+                            }
+                            else if (sineWave.Mode == SineWaveMode.Trail)
+                            {
+                                Vector3 sinePlaneNormal = sineWave.PlaneNormal;
+                                if (PropertyTable.DragVector3Property("Plane Normal"u8, "Reference axis for picking the perpendicular displacement direction. Leave at +Z for 2D scenes."u8, ref sinePlaneNormal, 0.01f, -1f, 1f))
+                                {
+                                    sineWave.PlaneNormal = sinePlaneNormal;
+                                    _context.HasUnsavedChanges = true;
+                                }
+                            }
+
+                            float sineAmplitude = sineWave.Amplitude;
+                            if (PropertyTable.DragFloatProperty("Amplitude"u8, "Peak displacement in world units"u8, ref sineAmplitude, 0.5f, 0f, float.MaxValue))
+                            {
+                                sineWave.Amplitude = sineAmplitude;
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            float sineWavelength = sineWave.Wavelength;
+                            if (PropertyTable.DragFloatProperty("Wavelength"u8, "Spatial period of the wave in world units"u8, ref sineWavelength, 1f, 0.01f, float.MaxValue))
+                            {
+                                sineWave.Wavelength = sineWavelength;
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            float sineSpeed = sineWave.Speed;
+                            if (PropertyTable.DragFloatProperty("Speed"u8, "How fast the wave travels along the propagation axis (0 = standing wave)"u8, ref sineSpeed, 1f, float.MinValue, float.MaxValue))
+                            {
+                                sineWave.Speed = sineSpeed;
+                                _context.HasUnsavedChanges = true;
+                            }
+                            break;
                     }
 
                     PropertyTable.EndPropertyTable();
@@ -662,6 +752,68 @@ public sealed class ModifiersView
                             }
 
                             PropertyTable.BeginPropertyTable("##interp-props-cont-hue"u8);
+                            break;
+
+                        case ColorGradientInterpolator gradientInterpolator:
+                            PropertyTable.EndPropertyTable();
+
+                            Text("Gradient Stops"u8);
+
+                            int gradientRemoveIndex = -1;
+                            for (int gi = 0; gi < gradientInterpolator.Stops.Count; gi++)
+                            {
+                                PushID(gi);
+                                ColorStop stop = gradientInterpolator.Stops[gi];
+
+                                if (PropertyTable.BeginPropertyTable("##gradient-stop-table"u8))
+                                {
+                                    float stopTime = stop.Time;
+                                    if (PropertyTable.DragFloatProperty("Time"u8, "Position of this stop along the particle's lifetime (0.0 = birth, 1.0 = death)"u8, ref stopTime, 0.01f, 0.0f, 1.0f))
+                                    {
+                                        stop.Time = stopTime;
+                                        gradientInterpolator.Stops[gi] = stop;
+                                        _context.HasUnsavedChanges = true;
+                                    }
+
+                                    XnaVec3 stopHsl = stop.Hsl;
+                                    if (PropertyTable.Color3VectorProperty("Color"u8, "HSL color at this stop"u8, ref stopHsl))
+                                    {
+                                        stop.Hsl = stopHsl;
+                                        gradientInterpolator.Stops[gi] = stop;
+                                        _context.HasUnsavedChanges = true;
+                                    }
+                                    PropertyTable.EndPropertyTable();
+                                }
+
+                                BeginDisabled(gradientInterpolator.Stops.Count <= 1);
+                                if (Button("Remove Stop"u8))
+                                {
+                                    gradientRemoveIndex = gi;
+                                }
+                                EndDisabled();
+
+                                Separator();
+                                PopID();
+                            }
+
+                            if (gradientRemoveIndex >= 0)
+                            {
+                                gradientInterpolator.Stops.RemoveAt(gradientRemoveIndex);
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            if (Button("Add Stop"u8))
+                            {
+                                float newTime = gradientInterpolator.Stops.Count > 0
+                                    ? MathF.Min(1.0f, gradientInterpolator.Stops[gradientInterpolator.Stops.Count - 1].Time + 0.1f)
+                                    : 0.5f;
+                                gradientInterpolator.Stops.Add(new ColorStop { Time = newTime, Hsl = new XnaVec3(0f, 1f, 0.5f) });
+                                _context.HasUnsavedChanges = true;
+                            }
+
+                            gradientInterpolator.Stops.Sort((a, b) => a.Time.CompareTo(b.Time));
+
+                            PropertyTable.BeginPropertyTable("##interp-props-cont-gradient"u8);
                             break;
 
                         case OpacityInterpolator opacityInterpolator:
@@ -892,6 +1044,7 @@ public sealed class ModifiersView
                 AddModifierChoice(typeof(VelocityModifier), "Velocity Modifier"u8, "Applies interpolators to particles based on their velocity magnitude"u8);
                 AddModifierChoice(typeof(VortexModifier), "Vortex Modifier"u8, "Creates a gravitational vortex effect, pulling particles toward a central point"u8);
                 AddModifierChoice(typeof(NoiseModifier), "Noise Modifier"u8, "Displaces particles with 3D noise for organic, turbulent motion"u8);
+                AddModifierChoice(typeof(SineWaveModifier), "Sine Wave Modifier"u8, "Oscillates particles along a sine wave traveling through space"u8);
             }
             EndChild();
 
@@ -963,6 +1116,7 @@ public sealed class ModifiersView
             if (BeginChild("##choose-interpolator-list"u8, ImGuiChildFlags.Borders | ImGuiChildFlags.AutoResizeY))
             {
                 AddInterpolatorChoice(typeof(ColorInterpolator), "Color Interpolator"u8, "Gradually changes all color components (hue, saturation, lightness) of particles over their lifetime"u8);
+                AddInterpolatorChoice(typeof(ColorGradientInterpolator), "Color Gradient Interpolator"u8, "Multi-stop color gradient over particle lifetime — drop as many color stops as you want"u8);
                 AddInterpolatorChoice(typeof(HueInterpolator), "Hue Interpolator"u8, "Changes only the hue component of particle colors while preserving saturation and lightness"u8);
                 AddInterpolatorChoice(typeof(OpacityInterpolator), "Opacity Interpolator"u8, "Gradually changes particle transparency from completely transparent to opaque"u8);
                 AddInterpolatorChoice(typeof(RotationInterpolator), "Rotation Interpolator"u8, "Gradually changes the rotation angle of particles over their lifetime"u8);

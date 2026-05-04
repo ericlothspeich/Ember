@@ -359,6 +359,74 @@ public sealed class EditorContext : IDisposable
         SelectModifier(0);
     }
 
+    public void DuplicateEmitter(int sourceIndex)
+    {
+        if (ParticleSystem == null || sourceIndex < 0 || sourceIndex >= ParticleSystem.Emitters.Count)
+        {
+            return;
+        }
+
+        ParticleEmitter source = ParticleSystem.Emitters[sourceIndex];
+
+        // Round-trip the source through XML serialization to deep-clone all profile/parameter/modifier data.
+        var writeContext = new EmberWriteContext
+        {
+            EffectName = ParticleSystem.Name ?? ProjectName,
+            AutoTrigger = ParticleSystem.AutoTrigger,
+            AutoTriggerFrequency = ParticleSystem.AutoTriggerFrequency,
+        };
+
+        int atlasW = ParticleTexture?.Width ?? 0;
+        int atlasH = ParticleTexture?.Height ?? 0;
+
+        var writeData = new EmitterWriteData
+        {
+            Emitter = source,
+            Name = source.Name
+        };
+        if (ParticleTexture != null)
+        {
+            writeData.TextureName = ParticleTexture.Name;
+            writeData.TextureBoundsX = (int)(source.UVOffset.X * atlasW);
+            writeData.TextureBoundsY = (int)(source.UVOffset.Y * atlasH);
+            writeData.TextureBoundsWidth = (int)(source.UVScale.X * atlasW);
+            writeData.TextureBoundsHeight = (int)(source.UVScale.Y * atlasH);
+        }
+        writeContext.Emitters.Add(writeData);
+
+        string xml = EmberWriter.Serialize(writeContext);
+        EmberData parsed = EmberLoader.Parse(xml);
+        if (parsed.Emitters.Count == 0) return;
+
+        ParticleEmitter clone = EmberLoader.CreateEmitter(parsed.Emitters[0], parsed, atlasW, atlasH);
+
+        // Carry over fields not covered by serialization.
+        clone.Visible = source.Visible;
+        clone.Offset = source.Offset;
+        clone.DepthOffset = source.DepthOffset;
+        clone.ScaleUniform = source.ScaleUniform;
+        clone.Name = GenerateUniqueEmitterName(source.Name);
+
+        int insertAt = sourceIndex + 1;
+        ParticleSystem.Emitters.Insert(insertAt, clone);
+        TrackLock(clone);
+        SelectEmitter(insertAt);
+        HasUnsavedChanges = true;
+    }
+
+    private string GenerateUniqueEmitterName(string baseName)
+    {
+        string root = baseName + " Copy";
+        int n = 1;
+        string candidate = root;
+        while (ParticleSystem.Emitters.Any(e => e.Name == candidate))
+        {
+            n++;
+            candidate = root + " " + n;
+        }
+        return candidate;
+    }
+
     public void RemoveEmitter(int index)
     {
         if (ParticleSystem == null || index < 0 || index >= ParticleSystem.Emitters.Count)
@@ -515,6 +583,18 @@ public sealed class EditorContext : IDisposable
             return new NoiseModifier() { Strength = 50f, Frequency = 1f, ScrollSpeed = 1f, Octaves = 1 };
         }
 
+        if (modifierType == typeof(SineWaveModifier))
+        {
+            return new SineWaveModifier()
+            {
+                PropagationAxis = new Vector3(1, 0, 0),
+                DisplacementAxis = new Vector3(0, 1, 0),
+                Amplitude = 10f,
+                Wavelength = 100f,
+                Speed = 50f
+            };
+        }
+
         if (modifierType == typeof(OpacityFastFadeModifier))
         {
             return new OpacityFastFadeModifier();
@@ -638,6 +718,11 @@ public sealed class EditorContext : IDisposable
         if (interpolatorType == typeof(HueInterpolator))
         {
             return new HueInterpolator() { StartValue = 0.0f, EndValue = 1.0f };
+        }
+
+        if (interpolatorType == typeof(ColorGradientInterpolator))
+        {
+            return new ColorGradientInterpolator();
         }
 
         if (interpolatorType == typeof(OpacityInterpolator))
